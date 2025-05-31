@@ -1,14 +1,13 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 // Create interface that extends Document but without the conflicting property names
-export interface IMotorcycleDocument extends Document {
+export interface IScootyDocument extends Document {
   modelName: string; // Renamed from 'model' to avoid conflict
-  category: "sport" | "adventure" | "cruiser" | "touring" | "naked" | "scooter";
+  category: "electric" | "petrol";
   year: number;
   price: number;
   engine: string;
   power: string;
-  transmission: string;
   features: string[];
   colors: string[];
   images: string[];
@@ -19,17 +18,17 @@ export interface IMotorcycleDocument extends Document {
   updatedAt: Date;
 }
 
-const MotorcycleSchema = new Schema<IMotorcycleDocument>(
+const ScootySchema = new Schema<IScootyDocument>(
   {
     modelName: {
       // Renamed from 'model' to 'modelName'
       type: String,
-      required: [true, "Please add motorcycle model"],
+      required: [true, "Please add scooty model"],
       trim: true,
     },
     category: {
       type: String,
-      required: [true, "Please add motorcycle category"],
+      required: [true, "Please add scooty category"],
       enum: ["sport", "adventure", "cruiser", "touring", "naked", "scooter"],
     },
     year: {
@@ -47,10 +46,6 @@ const MotorcycleSchema = new Schema<IMotorcycleDocument>(
     power: {
       type: String,
       required: [true, "Please add power specifications"],
-    },
-    transmission: {
-      type: String,
-      required: [true, "Please add transmission details"],
     },
     features: [String],
     colors: [String],
@@ -74,9 +69,6 @@ const MotorcycleSchema = new Schema<IMotorcycleDocument>(
   }
 );
 
-const Motorcycle = mongoose.model<IMotorcycleDocument>(
-  "Motorcycle",
-  MotorcycleSchema
-);
+const Scooty = mongoose.model<IScootyDocument>("Scooty", ScootySchema);
 
-export default Motorcycle;
+export default Scooty;

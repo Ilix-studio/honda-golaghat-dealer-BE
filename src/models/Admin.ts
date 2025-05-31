@@ -11,6 +11,7 @@ export interface IAdmin extends Document {
   createdAt: Date;
   updatedAt: Date;
   matchPassword(enteredPassword: string): Promise<boolean>;
+  getSignedJwtToken: () => string;
 }
 
 const AdminSchema = new Schema<IAdmin>(

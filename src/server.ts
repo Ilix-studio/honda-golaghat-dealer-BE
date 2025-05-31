@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import connectDB from "./config/dbConnection";
 import { errorHandler, routeNotFound } from "./middleware/errorMiddleware";
 import auth from "./routes/auth";
+import bikes from "./routes/bikes";
 
 // Create Express application
 const app: Application = express();
@@ -25,6 +26,7 @@ app.listen(PORT, () => {
 });
 
 app.use("/api/adminLogin", auth);
+app.use("/api/bikes", bikes);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
