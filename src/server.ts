@@ -5,6 +5,8 @@ import connectDB from "./config/dbConnection";
 import { errorHandler, routeNotFound } from "./middleware/errorMiddleware";
 import auth from "./routes/auth";
 import bikes from "./routes/bikes";
+import corsOptions from "./config/corOptions";
+import scooty from "./routes/scooty";
 
 // Create Express application
 const app: Application = express();
@@ -12,13 +14,26 @@ dotenv.config();
 
 const PORT = process.env.PORT || 8080;
 
-app.use(cors());
+//CORS
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint (add this before other routes)
+// Health check endpoints (no rate limiting)
 app.get("/", (req: Request, res: Response) => {
-  res.status(200).send("server is ready");
+  res.status(200).json({
+    success: true,
+    message: "Prapti Foundation API is running",
+    version: "1.0.0",
+  });
+});
+app.get("/_ah/health", (req: Request, res: Response) => {
+  res.status(200).send("OK");
+});
+
+app.get("/_ah/start", (req: Request, res: Response) => {
+  res.status(200).send("OK");
 });
 
 app.listen(PORT, () => {
@@ -27,6 +42,7 @@ app.listen(PORT, () => {
 
 app.use("/api/adminLogin", auth);
 app.use("/api/bikes", bikes);
+app.use("/api/bikes", scooty);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

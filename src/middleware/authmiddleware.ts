@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import asyncHandler from "express-async-handler";
 import Admin from "../models/Admin";
 import dotenv from "dotenv";
+import ErrorResponse from "../utils/errorResponse";
 
 dotenv.config();
 
@@ -55,3 +56,21 @@ export const protect = asyncHandler(
     }
   }
 );
+// Grant access to specific roles
+export const authorize = (...roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(new ErrorResponse("User not found", 401));
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return next(
+        new ErrorResponse(
+          `User role ${req.user.role} is not authorized to access this route`,
+          403
+        )
+      );
+    }
+    next();
+  };
+};

@@ -3,15 +3,10 @@ import asyncHandler from "express-async-handler";
 import { Request, Response, NextFunction } from "express";
 import Admin from "../models/Admin";
 import logger from "../utils/logger";
-import jwt from "jsonwebtoken";
+
 import dotenv from "dotenv";
 
 dotenv.config();
-
-// Make sure JWT_SECRET has a default value
-const JWT_SECRET = process.env.JWT_SECRET || "your_fallback_secret_key";
-// Set token expiration (in seconds)
-const TOKEN_EXPIRATION = process.env.JWT_EXPIRE_TIME || 30 * 24 * 60 * 60; // 30 days default
 
 /**
  * @desc    Login admin user and generate token
@@ -71,18 +66,7 @@ export const loginAdmin = asyncHandler(
  */
 export const logoutAdmin = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    // In a token-based auth system, the server doesn't typically "invalidate" JWTs
-    // Instead, the client is responsible for discarding the token
-
-    // For enhanced security, you could implement a token blacklist with Redis
-    // Here's a simple implementation that acknowledges logout
-
     // Get admin info from auth middleware
-    const admin = req.user;
-
-    if (admin) {
-      logger.info(`Admin logged out: ${admin.email}`);
-    }
 
     res.status(200).json({
       success: true,
