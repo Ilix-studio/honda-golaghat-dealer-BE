@@ -37,8 +37,8 @@ const AdminSchema = new Schema<IAdmin>(
     },
     role: {
       type: String,
-      enum: ["admin", "super-admin"],
-      default: "admin",
+      enum: ["branch-manager", "super-admin"],
+      default: "super-admin",
     },
     branch: {
       type: Schema.Types.ObjectId,

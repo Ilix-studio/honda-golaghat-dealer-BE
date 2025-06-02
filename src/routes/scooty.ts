@@ -6,19 +6,17 @@ import {
   getScooty,
   updateScootyById,
 } from "../controllers/scooty.controller";
+import { protect, authorize } from "../middleware/authmiddleware";
 
 const router = express.Router();
 
-//
-router.post("/addScooty", addScooty);
+// Public routes
+router.get("/", getScooty);
+router.get("/:id", getScootyById);
 
-//
-router.post("/getScooty", getScooty);
-//
-router.post("/getScooty/:id", getScootyById);
-//
-router.post("/updateScooty/:id", updateScootyById);
-//
-router.post("/deleteScooty/:id", deleteScootyById);
+// Protected routes (admin only)
+router.post("/add", protect, authorize("super-admin"), addScooty);
+router.put("/put/:id", protect, authorize("super-admin"), updateScootyById);
+router.delete("/del/:id", protect, authorize("super-admin"), deleteScootyById);
 
 export default router;

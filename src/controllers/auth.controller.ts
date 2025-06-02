@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Make two admin SuperAdmin and Branch Manager
 /**
  * @desc    Login admin user and generate token
  * @route   POST /api/admin/login

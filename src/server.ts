@@ -24,7 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
-    message: "Prapti Foundation API is running",
+    message: "Honda-Dealer Golaghat API is running",
     version: "1.0.0",
   });
 });
