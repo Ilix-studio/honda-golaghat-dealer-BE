@@ -24,7 +24,7 @@ const seedAdmin = asyncHandler(async (req, res) => {
       // Return success response
       res.status(201).json({
         success: true,
-        message: "Admin user created successfully",
+        message: "Super-Admin user created successfully",
         data: {
           name: admin.name,
           email: admin.email,
@@ -34,7 +34,7 @@ const seedAdmin = asyncHandler(async (req, res) => {
       // Admin already exists
       res.status(200).json({
         success: true,
-        message: "Admin user already exists",
+        message: "Super-Admin user already exists",
         data: {
           name: existingAdmin.name,
           email: existingAdmin.email,

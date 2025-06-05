@@ -2,12 +2,10 @@ import mongoose, { Document, Schema } from "mongoose";
 import bcrypt from "bcryptjs";
 
 export interface IBranchManager extends Document {
-  name: string;
-  email: string;
   password: string;
   applicationId: string;
   branch: mongoose.Types.ObjectId;
-  isActive: boolean;
+
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -17,19 +15,6 @@ export interface IBranchManager extends Document {
 
 const BranchManagerSchema = new Schema<IBranchManager>(
   {
-    name: {
-      type: String,
-      required: [true, "Please add a name"],
-    },
-    email: {
-      type: String,
-      required: [true, "Please add an email"],
-      unique: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        "Please add a valid email",
-      ],
-    },
     password: {
       type: String,
       required: [true, "Please add a password"],
@@ -46,13 +31,9 @@ const BranchManagerSchema = new Schema<IBranchManager>(
       ref: "Branch",
       required: [true, "Please add a branch"],
     },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: "Admin",
+      ref: "Super-Admin",
       required: true,
     },
   },

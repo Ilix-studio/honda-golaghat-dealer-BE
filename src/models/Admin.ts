@@ -5,7 +5,7 @@ export interface IAdmin extends Document {
   name: string;
   email: string;
   password: string;
-  role: "admin" | "super-admin";
+  role: "Super-Admin" | "Branch-Admin";
   branch: mongoose.Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
@@ -37,8 +37,8 @@ const AdminSchema = new Schema<IAdmin>(
     },
     role: {
       type: String,
-      enum: ["branch-manager", "super-admin"],
-      default: "super-admin",
+      enum: ["Super-Admin", "Branch-admin"],
+      default: "Super-Admin",
     },
     branch: {
       type: Schema.Types.ObjectId,
@@ -72,6 +72,6 @@ AdminSchema.methods.matchPassword = async function (
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-const Admin = mongoose.model<IAdmin>("Admin", AdminSchema);
+const AdminModel = mongoose.model<IAdmin>("Admin", AdminSchema);
 
-export default Admin;
+export default AdminModel;

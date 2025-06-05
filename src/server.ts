@@ -5,14 +5,23 @@ import connectDB from "./config/dbConnection";
 import { errorHandler, routeNotFound } from "./middleware/errorMiddleware";
 import auth from "./routes/auth";
 import bikes from "./routes/bikes";
-import corsOptions from "./config/corOptions";
 import scooty from "./routes/scooty";
+import branchRoutes from "./routes/branches";
+import corsOptions from "./config/corOptions";
+import rateLimit from "express-rate-limit";
 
 // Create Express application
 const app: Application = express();
 dotenv.config();
 
 const PORT = process.env.PORT || 8080;
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes",
+});
 
 //CORS
 app.use(cors(corsOptions));
@@ -41,8 +50,12 @@ app.listen(PORT, () => {
 });
 
 app.use("/api/adminLogin", auth);
+app.use("/api/branch", branchRoutes);
 app.use("/api/bikes", bikes);
-app.use("/api/bikes", scooty);
+app.use("/api/scooty", scooty);
+
+// Apply rate limiting to API routes except health checks
+app.use("/api", apiLimiter);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
@@ -56,3 +69,5 @@ app.use(errorHandler);
 
 // Connect to MongoDB
 connectDB();
+
+export default app;

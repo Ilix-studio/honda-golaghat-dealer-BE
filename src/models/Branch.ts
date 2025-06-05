@@ -19,9 +19,6 @@ export interface IBranch extends Document {
   email: string;
   hours: HoursType;
   staff: StaffMember[];
-  rating: number;
-  reviews: number;
-  featured: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,20 +83,6 @@ const BranchSchema = new Schema<IBranch>(
       required: [true, "Please add branch hours"],
     },
     staff: [StaffSchema],
-    rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0,
-    },
-    reviews: {
-      type: Number,
-      default: 0,
-    },
-    featured: {
-      type: Boolean,
-      default: false,
-    },
   },
   {
     timestamps: true,

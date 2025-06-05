@@ -49,7 +49,12 @@ const ScootySchema = new Schema<IScootyDocument>(
     },
     features: [String],
     colors: [String],
-    images: [String],
+    images: [
+      {
+        type: String,
+        required: true,
+      },
+    ],
     inStock: {
       type: Boolean,
       default: true,
@@ -69,6 +74,6 @@ const ScootySchema = new Schema<IScootyDocument>(
   }
 );
 
-const Scooty = mongoose.model<IScootyDocument>("Scooty", ScootySchema);
+const ScootyModel = mongoose.model<IScootyDocument>("Scooty", ScootySchema);
 
-export default Scooty;
+export default ScootyModel;

@@ -25,6 +25,9 @@ export const routeNotFound = (
   res: Response,
   next: NextFunction
 ): void => {
+  if (req.originalUrl === "/favicon.ico") {
+    res.status(204).end(); // Ignore it silently
+  }
   const error: CustomError = new Error(`Not Found - ${req.originalUrl}`);
   res.status(404);
   next(error);

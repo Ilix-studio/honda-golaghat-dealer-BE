@@ -38,6 +38,7 @@ const BikesSchema = new Schema<IBikesDocument>(
       required: [true, "Please add Bikes category"],
       enum: ["sport", "adventure", "cruiser", "touring", "naked", "electric"],
     },
+
     year: {
       type: Number,
       required: [true, "Please add manufacturing year"],
@@ -60,7 +61,12 @@ const BikesSchema = new Schema<IBikesDocument>(
     },
     features: [String],
     colors: [String],
-    images: [String],
+    images: [
+      {
+        type: String,
+        required: true,
+      },
+    ],
     inStock: {
       type: Boolean,
       default: true,
@@ -80,6 +86,6 @@ const BikesSchema = new Schema<IBikesDocument>(
   }
 );
 
-const Bikes = mongoose.model<IBikesDocument>("Bikes", BikesSchema);
+const BikeModel = mongoose.model<IBikesDocument>("Bikes", BikesSchema);
 
-export default Bikes;
+export default BikeModel;
