@@ -11,21 +11,21 @@ import { protect, authorize } from "../middleware/authmiddleware";
 const router = express.Router();
 
 //
-router.post("/getBikes", getBikes);
+router.get("/getBikes", getBikes);
 //
-router.post("/getBike/:id", getBikeById);
+router.get("/getBike/:id", getBikeById);
 
 //
-router.post("/addBikes", protect, authorize("super-admin"), addBikes);
+router.post("/addBikes", protect, authorize("Super-Admin"), addBikes);
 
 //
 router.post(
   "/updateBike/:id",
   protect,
-  authorize("super-admin"),
+  authorize("Super-Admin"),
   updateBikeById
 );
 //
-router.post("/getBikes", protect, authorize("super-admin"), deleteBikeById);
+router.post("/getBikes", protect, authorize("Super-Admin"), deleteBikeById);
 
 export default router;

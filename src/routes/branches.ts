@@ -10,6 +10,7 @@ import {
 } from "../controllers/branches.controller";
 
 const router = express.Router();
+// "/api/branch"
 
 // Public routes
 router.get("/", getBranches);

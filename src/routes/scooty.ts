@@ -15,8 +15,8 @@ router.get("/", getScooty);
 router.get("/:id", getScootyById);
 
 // Protected routes (admin only)
-router.post("/add", protect, authorize("super-admin"), addScooty);
-router.put("/put/:id", protect, authorize("super-admin"), updateScootyById);
-router.delete("/del/:id", protect, authorize("super-admin"), deleteScootyById);
+router.post("/add", protect, authorize("Super-Admin"), addScooty);
+router.put("/put/:id", protect, authorize("Super-Admin"), updateScootyById);
+router.delete("/del/:id", protect, authorize("Super-Admin"), deleteScootyById);
 
 export default router;

@@ -13,13 +13,14 @@ export interface IBikesDocument extends Document {
   year: number;
   price: number;
   engine: string;
-  power: string;
+  power: number;
   transmission: string;
   features: string[];
   colors: string[];
   images: string[];
   inStock: boolean;
   quantity: number;
+  isNewModel?: boolean; // Renamed from isNew to avoid conflict with Document.isNew
   branch: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -52,7 +53,7 @@ const BikesSchema = new Schema<IBikesDocument>(
       required: [true, "Please add engine details"],
     },
     power: {
-      type: String,
+      type: Number,
       required: [true, "Please add power specifications"],
     },
     transmission: {
@@ -79,6 +80,10 @@ const BikesSchema = new Schema<IBikesDocument>(
       type: Schema.Types.ObjectId,
       ref: "Branch",
       required: [true, "Please add a branch"],
+    },
+    isNewModel: {
+      type: Boolean,
+      default: false,
     },
   },
   {

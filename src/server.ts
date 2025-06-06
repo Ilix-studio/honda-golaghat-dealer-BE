@@ -7,6 +7,8 @@ import auth from "./routes/auth";
 import bikes from "./routes/bikes";
 import scooty from "./routes/scooty";
 import branchRoutes from "./routes/branches";
+import staffRoutes from "./routes/staff";
+
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
 
@@ -53,6 +55,7 @@ app.use("/api/adminLogin", auth);
 app.use("/api/branch", branchRoutes);
 app.use("/api/bikes", bikes);
 app.use("/api/scooty", scooty);
+app.use("/api/staff", staffRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);
