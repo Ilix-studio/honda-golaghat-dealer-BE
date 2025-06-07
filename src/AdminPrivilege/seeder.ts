@@ -19,6 +19,7 @@ const seedAdmin = asyncHandler(async (req, res) => {
         name: "Honda-Golaghat",
         email: "honda_golaghat@gmail.com",
         password: "admin123",
+        role: "Super-Admin",
       });
 
       // Return success response
@@ -28,6 +29,7 @@ const seedAdmin = asyncHandler(async (req, res) => {
         data: {
           name: admin.name,
           email: admin.email,
+          role: admin.role,
         },
       });
     } else {
@@ -52,3 +54,5 @@ const seedAdmin = asyncHandler(async (req, res) => {
 });
 
 export default seedAdmin;
+
+//Remove the branch from Admin mOdel to add super-Admin infomation in DB

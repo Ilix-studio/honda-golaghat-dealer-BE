@@ -3,6 +3,12 @@ import { Request, Response } from "express";
 import Branch from "../models/Branch";
 import mongoose from "mongoose";
 import logger from "../utils/logger";
+import {
+  isAdmin,
+  isBranchManager,
+  getUserRole,
+  getUserBranch,
+} from "../types/user.types";
 
 /**
  * @desc    Create staff member
@@ -32,21 +38,28 @@ export const createStaffM = asyncHandler(
       throw new Error("Branch not found");
     }
 
+    // Ensure user exists
+    if (!req.user) {
+      res.status(401);
+      throw new Error("User not authenticated");
+    }
+
     // For Branch Managers, verify they can only add staff to their own branch
-    if (
-      req.user.role === "Branch-Admin" &&
-      req.user.branch.toString() !== branchId
-    ) {
-      res.status(403);
-      throw new Error("You can only add staff to your assigned branch");
+    if (isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch && userBranch.toString() !== branchId) {
+        res.status(403);
+        throw new Error("You can only add staff to your assigned branch");
+      }
     }
 
     // Add staff member to branch
     branch.staff.push({ name, position });
     await branch.save();
 
+    const userRole = getUserRole(req.user);
     logger.info(
-      `Staff member ${name} added to branch ${branch.name} by ${req.user.role}`
+      `Staff member ${name} added to branch ${branch.name} by ${userRole}`
     );
 
     res.status(201).json({
@@ -83,13 +96,19 @@ export const getStaffByBranch = asyncHandler(
       throw new Error("Branch not found");
     }
 
+    // Ensure user exists
+    if (!req.user) {
+      res.status(401);
+      throw new Error("User not authenticated");
+    }
+
     // For Branch Managers, verify they can only view staff from their own branch
-    if (
-      req.user.role === "Branch-Admin" &&
-      req.user.branch.toString() !== branchId
-    ) {
-      res.status(403);
-      throw new Error("You can only view staff from your assigned branch");
+    if (isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch && userBranch.toString() !== branchId) {
+        res.status(403);
+        throw new Error("You can only view staff from your assigned branch");
+      }
     }
 
     res.status(200).json({
@@ -134,13 +153,19 @@ export const updateStaffMember = asyncHandler(
       throw new Error("Branch not found");
     }
 
+    // Ensure user exists
+    if (!req.user) {
+      res.status(401);
+      throw new Error("User not authenticated");
+    }
+
     // For Branch Managers, verify they can only manage staff in their own branch
-    if (
-      req.user.role === "Branch-Admin" &&
-      req.user.branch.toString() !== branchId
-    ) {
-      res.status(403);
-      throw new Error("You can only manage staff in your assigned branch");
+    if (isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch && userBranch.toString() !== branchId) {
+        res.status(403);
+        throw new Error("You can only manage staff in your assigned branch");
+      }
     }
 
     // Check if staff index is valid
@@ -155,9 +180,8 @@ export const updateStaffMember = asyncHandler(
 
     await branch.save();
 
-    logger.info(
-      `Staff member updated in branch ${branch.name} by ${req.user.role}`
-    );
+    const userRole = getUserRole(req.user);
+    logger.info(`Staff member updated in branch ${branch.name} by ${userRole}`);
 
     res.status(200).json({
       success: true,
@@ -195,13 +219,19 @@ export const removeStaffMember = asyncHandler(
       throw new Error("Branch not found");
     }
 
+    // Ensure user exists
+    if (!req.user) {
+      res.status(401);
+      throw new Error("User not authenticated");
+    }
+
     // For Branch Managers, verify they can only manage staff in their own branch
-    if (
-      req.user.role === "Branch-Admin" &&
-      req.user.branch.toString() !== branchId
-    ) {
-      res.status(403);
-      throw new Error("You can only manage staff in your assigned branch");
+    if (isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch && userBranch.toString() !== branchId) {
+        res.status(403);
+        throw new Error("You can only manage staff in your assigned branch");
+      }
     }
 
     // Check if staff index is valid
@@ -217,8 +247,9 @@ export const removeStaffMember = asyncHandler(
     branch.staff.splice(index, 1);
     await branch.save();
 
+    const userRole = getUserRole(req.user);
     logger.info(
-      `Staff member ${removedStaff.name} removed from branch ${branch.name} by ${req.user.role}`
+      `Staff member ${removedStaff.name} removed from branch ${branch.name} by ${userRole}`
     );
 
     res.status(200).json({

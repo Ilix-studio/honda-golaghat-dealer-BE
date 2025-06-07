@@ -1,21 +1,23 @@
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import logger from "./logger";
 
-export const generateToken = (id: string): string => {
+export const generateToken = (payload: object): string => {
   // Verify secret exists
-  if (!process.env.ACCESS_TOKEN_SECRET) {
+  if (!process.env.JWT_SECRET) {
     logger.error("JWT secret is not configured");
     throw new Error("JWT secret is not configured");
   }
 
   try {
-    const token = jwt.sign({ id }, process.env.ACCESS_TOKEN_SECRET, {
+    const options: SignOptions = {
       expiresIn: "30d",
-    });
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, options);
 
     // Log token generation (first few characters only)
     logger.debug("Token generated successfully:", {
-      id,
+      payload,
       tokenPrefix: token.substring(0, 10) + "...",
     });
 
@@ -27,5 +29,9 @@ export const generateToken = (id: string): string => {
 };
 
 export const verifyToken = (token: string): jwt.JwtPayload => {
-  return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!) as jwt.JwtPayload;
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT secret is not configured");
+  }
+
+  return jwt.verify(token, process.env.JWT_SECRET) as jwt.JwtPayload;
 };

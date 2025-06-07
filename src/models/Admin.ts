@@ -1,17 +1,17 @@
 import mongoose, { Document, Schema } from "mongoose";
 import bcrypt from "bcryptjs";
+import { generateToken } from "../utils/jwt";
 
 export interface IAdmin extends Document {
   name: string;
   email: string;
   password: string;
   role: "Super-Admin" | "Branch-Admin";
-  branch: mongoose.Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   matchPassword(enteredPassword: string): Promise<boolean>;
-  getSignedJwtToken: () => string;
+  getSignedJwtToken(): string;
 }
 
 const AdminSchema = new Schema<IAdmin>(
@@ -37,13 +37,8 @@ const AdminSchema = new Schema<IAdmin>(
     },
     role: {
       type: String,
-      enum: ["Super-Admin", "Branch-admin"],
+      enum: ["Super-Admin", "Branch-Admin"],
       default: "Super-Admin",
-    },
-    branch: {
-      type: Schema.Types.ObjectId,
-      ref: "Branch",
-      required: [true, "Please add a branch"],
     },
     isActive: {
       type: Boolean,
@@ -70,6 +65,14 @@ AdminSchema.methods.matchPassword = async function (
   enteredPassword: string
 ): Promise<boolean> {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Sign JWT and return
+AdminSchema.methods.getSignedJwtToken = function (): string {
+  return generateToken({
+    id: this._id,
+    role: this.role,
+  });
 };
 
 const AdminModel = mongoose.model<IAdmin>("Admin", AdminSchema);

@@ -1,13 +1,11 @@
 import express from "express";
-
 import {
   loginSuperAdmin,
   logoutSuperAdmin,
   createBranchM,
-  loginBranchM,
-  logoutBranchM,
   deleteBranchM,
   createStaffM,
+  getAllBranchManagers,
 } from "../controllers/auth.controller";
 import seedAdmin from "../AdminPrivilege/seeder";
 import { authorize, protect } from "../middleware/authmiddleware";
@@ -16,52 +14,81 @@ import {
   removeStaffMember,
   updateStaffMember,
 } from "../controllers/staffM.controller";
+import { loginBranchM, logoutBranchM } from "../controllers/branchM.controller";
 
 const router = express.Router();
 
+// Seed route (development only)
 if (process.env.NODE_ENV === "development") {
   router.post("/seed", seedAdmin);
 }
 
-// Protect all routes
-router.use(protect);
+// ===== LOGIN ROUTES (PUBLIC - No auth needed) =====
+router.post("/super-ad-login", loginSuperAdmin);
+router.post("/branchM-login", loginBranchM);
 
-// login Super-Admin
-router.post("/super-ad-login", authorize("Super-Admin"), loginSuperAdmin);
+// ===== LOGOUT ROUTES (PROTECTED) =====
+router.post(
+  "/super-ad-logout",
+  protect,
+  authorize("Super-Admin"),
+  logoutSuperAdmin
+);
 
-// logout Super-Admin
-router.post("/super-ad-logout", authorize("Super-Admin"), logoutSuperAdmin);
+router.post(
+  "/branchM-logout",
+  protect,
+  authorize("Branch-Admin"),
+  logoutBranchM
+);
 
-// create Branch-Manager by super-admin
-router.post("/create-branchM", authorize("Super-Admin"), createBranchM);
+// ===== BRANCH MANAGER MANAGEMENT (Super-Admin only) =====
+router.post(
+  "/create-branchM",
+  protect,
+  authorize("Super-Admin"),
+  createBranchM
+);
 
-// login Branch-Manager
-router.post("/branchM-login", authorize("Branch-Admin"), loginBranchM);
+router.get(
+  "/branch-managers",
+  protect,
+  authorize("Super-Admin"),
+  getAllBranchManagers
+);
 
-// logout Branch-Manager
-router.post("/branchM-logout", authorize("Branch-Admin"), logoutBranchM);
+router.delete(
+  "/del-branchM/:id",
+  protect,
+  authorize("Super-Admin"),
+  deleteBranchM
+);
 
-// delete branch-Manager
-router.delete("/del-branchM", authorize("Super-Admin"), deleteBranchM);
-
-// Staff management routes - accessible by both roles
+// ===== STAFF MANAGEMENT ROUTES (Both roles can access) =====
 router.post(
   "/create-staffM",
+  protect,
   authorize("Super-Admin", "Branch-Admin"),
   createStaffM
 );
+
 router.get(
   "/staff/:branchId",
+  protect,
   authorize("Super-Admin", "Branch-Admin"),
   getStaffByBranch
 );
+
 router.put(
   "/staff/:branchId/:staffIndex",
+  protect,
   authorize("Super-Admin", "Branch-Admin"),
   updateStaffMember
 );
+
 router.delete(
   "/staff/:branchId/:staffIndex",
+  protect,
   authorize("Super-Admin", "Branch-Admin"),
   removeStaffMember
 );

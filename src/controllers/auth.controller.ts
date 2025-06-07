@@ -3,7 +3,6 @@ import asyncHandler from "express-async-handler";
 import { Request, Response, NextFunction } from "express";
 import Admin from "../models/Admin";
 import logger from "../utils/logger";
-
 import dotenv from "dotenv";
 import BranchManager from "../models/BranchManager";
 import Branch from "../models/Branch";
@@ -12,13 +11,18 @@ import {
   generateApplicationId,
   generateRandomPassword,
 } from "../utils/generateID";
+import {
+  isAdmin,
+  isBranchManager,
+  getUserRole,
+  getUserBranch,
+} from "../types/user.types";
 
 dotenv.config();
 
-// Make two admin Super-Admin and Branch-Manager
 /**
- * @desc    Login Super-Admin  and generate token
- * @route   POST /api/admin/login
+ * @desc    Login Super-Admin and generate token
+ * @route   POST /api/adminLogin/super-ad-login
  * @access  Public
  */
 export const loginSuperAdmin = asyncHandler(
@@ -61,6 +65,7 @@ export const loginSuperAdmin = asyncHandler(
         id: admin._id,
         name: admin.name,
         email: admin.email,
+        role: admin.role,
         token,
       },
     });
@@ -69,19 +74,23 @@ export const loginSuperAdmin = asyncHandler(
 
 /**
  * @desc    Logout Super-Admin
- * @route   POST /api/admin/logout
+ * @route   POST /api/adminLogin/super-ad-logout
  * @access  Private
  */
 export const logoutSuperAdmin = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    // Get admin info from auth middleware
-
     res.status(200).json({
       success: true,
       message: "Logout successful",
     });
   }
 );
+
+/**
+ * @desc    Create Branch Manager
+ * @route   POST /api/adminLogin/create-branchM
+ * @access  Private (Super-Admin only)
+ */
 export const createBranchM = asyncHandler(
   async (req: Request, res: Response) => {
     const { branch } = req.body;
@@ -110,6 +119,12 @@ export const createBranchM = asyncHandler(
     const applicationId = generateApplicationId();
     const password = generateRandomPassword();
 
+    // Ensure req.user exists and is admin
+    if (!req.user || !isAdmin(req.user)) {
+      res.status(403);
+      throw new Error("Only Super-Admin can create branch managers");
+    }
+
     // Create branch manager
     const branchManager = await BranchManager.create({
       applicationId,
@@ -133,65 +148,12 @@ export const createBranchM = asyncHandler(
     });
   }
 );
-export const loginBranchM = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { applicationId, password } = req.body;
 
-    // Validate input
-    if (!applicationId || !password) {
-      res.status(400).json({
-        success: false,
-        message: "Please provide both application ID and password",
-      });
-      return;
-    }
-
-    // Find branch manager by application ID
-    const branchManager = await BranchManager.findOne({ applicationId }).select(
-      "+password"
-    );
-
-    // Check if branch manager exists and password matches
-    if (!branchManager || !(await branchManager.matchPassword(password))) {
-      logger.info(`Failed login attempt for application ID: ${applicationId}`);
-      res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-      return;
-    }
-
-    // Populate branch details
-    await branchManager.populate("branch", "name location");
-
-    // Generate token
-    const token = branchManager.getSignedJwtToken();
-
-    // Log successful login
-    logger.info(`Branch manager logged in: ${branchManager.applicationId}`);
-
-    // Return success with token
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      data: {
-        id: branchManager._id,
-        applicationId: branchManager.applicationId,
-        branch: branchManager.branch,
-        token,
-      },
-    });
-  }
-);
-export const logoutBranchM = asyncHandler(
-  async (req: Request, res: Response) => {
-    res.status(200).json({
-      success: true,
-      message: "Logout successful",
-    });
-  }
-);
-
+/**
+ * @desc    Delete Branch Manager
+ * @route   DELETE /api/adminLogin/del-branchM/:id
+ * @access  Private (Super-Admin only)
+ */
 export const deleteBranchM = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -227,13 +189,13 @@ export const deleteBranchM = asyncHandler(
 
 /**
  * @desc    Get all branch managers
- * @route   GET /api/admin/branch-managers
+ * @route   GET /api/adminLogin/branch-managers
  * @access  Private (Super-Admin only)
  */
 export const getAllBranchManagers = asyncHandler(
   async (req: Request, res: Response) => {
     const branchManagers = await BranchManager.find()
-      .populate("branch", "name location")
+      .populate("branch", "name address")
       .populate("createdBy", "name email");
 
     res.status(200).json({
@@ -246,7 +208,7 @@ export const getAllBranchManagers = asyncHandler(
 
 /**
  * @desc    Create staff member
- * @route   POST /api/admin/create-staffM
+ * @route   POST /api/adminLogin/create-staffM
  * @access  Private (Super-Admin and Branch-Managers)
  */
 export const createStaffM = asyncHandler(
@@ -272,21 +234,28 @@ export const createStaffM = asyncHandler(
       throw new Error("Branch not found");
     }
 
+    // Ensure user exists
+    if (!req.user) {
+      res.status(401);
+      throw new Error("User not authenticated");
+    }
+
     // For Branch Managers, verify they can only add staff to their own branch
-    if (
-      req.user.role === "Branch-Admin" &&
-      req.user.branch.toString() !== branchId
-    ) {
-      res.status(403);
-      throw new Error("You can only add staff to your assigned branch");
+    if (isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch && userBranch.toString() !== branchId) {
+        res.status(403);
+        throw new Error("You can only add staff to your assigned branch");
+      }
     }
 
     // Add staff member to branch
     branch.staff.push({ name, position });
     await branch.save();
 
+    const userRole = getUserRole(req.user);
     logger.info(
-      `Staff member ${name} added to branch ${branch.name} by ${req.user.role}`
+      `Staff member ${name} added to branch ${branch.name} by ${userRole}`
     );
 
     res.status(201).json({

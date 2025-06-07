@@ -1,24 +1,14 @@
 // middleware/authMiddleware.ts
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
 import asyncHandler from "express-async-handler";
 import Admin from "../models/Admin";
+import BranchManager from "../models/BranchManager";
 import dotenv from "dotenv";
 import ErrorResponse from "../utils/errorResponse";
+import { verifyToken } from "../utils/jwt";
+import { AuthenticatedUser, getUserRole } from "../types/user.types";
 
 dotenv.config();
-
-// Make sure JWT_SECRET has a default value
-const JWT_SECRET = process.env.JWT_SECRET || "your_fallback_secret_key";
-
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: any;
-    }
-  }
-}
 
 export const protect = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -34,16 +24,35 @@ export const protect = asyncHandler(
         token = req.headers.authorization.split(" ")[1];
 
         // Verify token
-        const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+        const decoded = verifyToken(token);
 
-        // Get user from token
-        req.user = await Admin.findById(decoded.id).select("-password");
+        let user: AuthenticatedUser | null = null;
 
-        if (!req.user) {
+        // First try to find as Admin
+        const admin = await Admin.findById(decoded.id).select("-password");
+        if (admin) {
+          user = admin;
+        } else {
+          // Then try to find as BranchManager
+          const branchManager = await BranchManager.findById(decoded.id)
+            .select("-password")
+            .populate("branch", "name address");
+
+          if (branchManager) {
+            // Add the role property for BranchManager
+            const branchManagerWithRole = Object.assign(branchManager, {
+              role: "Branch-Admin" as const,
+            });
+            user = branchManagerWithRole;
+          }
+        }
+
+        if (!user) {
           res.status(401);
           throw new Error("User not found with this token");
         }
 
+        req.user = user;
         next();
       } catch (error) {
         console.error("Token verification error:", error);
@@ -56,6 +65,7 @@ export const protect = asyncHandler(
     }
   }
 );
+
 // Grant access to specific roles
 export const authorize = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -63,10 +73,12 @@ export const authorize = (...roles: string[]) => {
       return next(new ErrorResponse("User not found", 401));
     }
 
-    if (!roles.includes(req.user.role)) {
+    const userRole = getUserRole(req.user);
+
+    if (!roles.includes(userRole)) {
       return next(
         new ErrorResponse(
-          `User role ${req.user.role} is not authorized to access this route`,
+          `User role ${userRole} is not authorized to access this route`,
           403
         )
       );

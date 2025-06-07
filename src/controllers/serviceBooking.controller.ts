@@ -4,6 +4,13 @@ import ServiceBooking from "../models/ServiceBooking";
 import Branch from "../models/Branch";
 import mongoose from "mongoose";
 import logger from "../utils/logger";
+import {
+  isAdmin,
+  isBranchManager,
+  getUserRole,
+  getUserBranch,
+  canAccessBranch,
+} from "../types/user.types";
 
 /**
  * @desc    Create a new service booking
@@ -162,6 +169,14 @@ export const getServiceBookings = asyncHandler(
     // Build query
     const query: any = {};
 
+    // For Branch Managers, restrict to their branch only
+    if (req.user && isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch) {
+        query.branch = userBranch;
+      }
+    }
+
     if (status) {
       query.status = status;
     }
@@ -171,6 +186,13 @@ export const getServiceBookings = asyncHandler(
         res.status(400);
         throw new Error("Invalid service location ID");
       }
+
+      // Check if user can access this service location
+      if (req.user && !canAccessBranch(req.user, serviceLocation as string)) {
+        res.status(403);
+        throw new Error("Access denied to this service location");
+      }
+
       query.serviceLocation = serviceLocation;
     }
 
@@ -242,6 +264,17 @@ export const getServiceBookingById = asyncHandler(
       throw new Error("Service booking not found");
     }
 
+    // Check access permissions for authenticated users
+    if (req.user) {
+      if (isBranchManager(req.user)) {
+        const userBranch = getUserBranch(req.user);
+        if (userBranch && booking.branch.toString() !== userBranch.toString()) {
+          res.status(403);
+          throw new Error("Access denied to this booking");
+        }
+      }
+    }
+
     // Populate related data
     await booking.populate([
       { path: "serviceLocation", select: "name address phone email hours" },
@@ -282,6 +315,15 @@ export const updateBookingStatus = asyncHandler(
       throw new Error("Service booking not found");
     }
 
+    // Check access permissions
+    if (req.user && isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch && booking.branch.toString() !== userBranch.toString()) {
+        res.status(403);
+        throw new Error("Access denied to this booking");
+      }
+    }
+
     // Validate status transition
     const validStatuses = [
       "pending",
@@ -304,8 +346,9 @@ export const updateBookingStatus = asyncHandler(
 
     await booking.save();
 
+    const userRole = req.user ? getUserRole(req.user) : "system";
     logger.info(
-      `Service booking ${booking.bookingId} status updated to ${status} by admin`
+      `Service booking ${booking.bookingId} status updated to ${status} by ${userRole}`
     );
 
     res.status(200).json({
@@ -348,6 +391,15 @@ export const cancelServiceBooking = asyncHandler(
     if (!req.user && email !== booking.contactInfo.email) {
       res.status(403);
       throw new Error("Unauthorized to cancel this booking");
+    }
+
+    // For Branch Managers, check if they can access this booking
+    if (req.user && isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch && booking.branch.toString() !== userBranch.toString()) {
+        res.status(403);
+        throw new Error("Access denied to this booking");
+      }
     }
 
     // Check if booking can be cancelled
@@ -403,12 +455,8 @@ export const getBranchUpcomingAppointments = asyncHandler(
       throw new Error("Invalid branch ID");
     }
 
-    // For Branch Admins, ensure they can only see their own branch
-    if (
-      req.user &&
-      req.user.role === "Branch-Admin" &&
-      req.user.branch.toString() !== branchId
-    ) {
+    // Check access permissions
+    if (req.user && !canAccessBranch(req.user, branchId)) {
       res.status(403);
       throw new Error("Access denied to this branch data");
     }
@@ -448,7 +496,14 @@ export const getBookingStats = asyncHandler(
     // Build base query
     const baseQuery: any = {};
 
-    if (branchId) {
+    // For Branch Managers, restrict to their branch
+    if (req.user && isBranchManager(req.user)) {
+      const userBranch = getUserBranch(req.user);
+      if (userBranch) {
+        baseQuery.branch = userBranch;
+      }
+    } else if (branchId) {
+      // For Super Admins, allow filtering by branch
       if (!mongoose.Types.ObjectId.isValid(branchId as string)) {
         res.status(400);
         throw new Error("Invalid branch ID");
