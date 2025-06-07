@@ -9,6 +9,7 @@ import {
 import { protect, authorize } from "../middleware/authmiddleware";
 
 const router = express.Router();
+/// api/scooty
 
 // Public routes
 router.get("/", getScooty);

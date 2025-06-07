@@ -11,6 +11,8 @@ import {
 
 const router = express.Router();
 
+// /api/staff
+
 // Staff management routes - accessible by both roles
 router.post(
   "/create-staffM",
