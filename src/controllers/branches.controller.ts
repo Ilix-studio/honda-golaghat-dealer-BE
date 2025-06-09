@@ -1,8 +1,40 @@
+// Debug version of branches.controller.ts
+
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import Branch from "../models/Branch";
-
 import logger from "../utils/logger";
+import mongoose from "mongoose";
+
+/**
+ * Generate a unique branch ID from branch name
+ */
+const generateBranchId = (name: string): string => {
+  // Remove "Honda Motorcycles" prefix if present and convert to lowercase
+  const cleanName = name
+    .replace(/honda\s*motorcycles?\s*/i, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "") // Remove special characters
+    .substring(0, 20); // Limit length
+
+  return cleanName || "branch";
+};
+
+/**
+ * Check if generated ID is unique, if not append number
+ */
+const ensureUniqueId = async (baseId: string): Promise<string> => {
+  let uniqueId = baseId;
+  let counter = 1;
+
+  while (await Branch.findOne({ id: uniqueId })) {
+    uniqueId = `${baseId}${counter}`;
+    counter++;
+  }
+
+  return uniqueId;
+};
 
 /**
  * @desc    Add a new branch
@@ -10,13 +42,50 @@ import logger from "../utils/logger";
  * @access  Private (Super-Admin only)
  */
 export const addBranch = asyncHandler(async (req: Request, res: Response) => {
-  const { id, name, address, phone, email, hours, staff } = req.body;
+  // Debug logging
+  console.log("=== addBranch Debug Info ===");
+  console.log("Request method:", req.method);
+  console.log("Request headers:", req.headers);
+  console.log("Request body:", req.body);
+  console.log("Request body type:", typeof req.body);
+  console.log("Request body keys:", Object.keys(req.body || {}));
+  console.log("Content-Type:", req.headers["content-type"]);
+  console.log("=== End Debug Info ===");
 
-  // Validate required fields
-  if (!id || !name || !address || !phone || !email) {
+  // Check if req.body exists
+  if (!req.body) {
+    console.error("req.body is undefined");
+    res.status(400).json({
+      success: false,
+      error: "Request body is missing. Please send data in JSON format.",
+    });
+    return;
+  }
+
+  // Check if req.body is empty
+  if (Object.keys(req.body).length === 0) {
+    console.error("req.body is empty");
+    res.status(400).json({
+      success: false,
+      error: "Request body is empty. Please send data in JSON format.",
+    });
+    return;
+  }
+
+  const { name, address, phone, email, hours, staff } = req.body;
+
+  // Debug individual fields
+  console.log("Extracted fields:");
+  console.log("name:", name);
+  console.log("address:", address);
+  console.log("phone:", phone);
+  console.log("email:", email);
+
+  // Validate required fields (removed 'id' from required fields)
+  if (!name || !address || !phone || !email) {
     res.status(400);
     throw new Error(
-      "Please provide all required fields: id, name, address, phone, and email"
+      "Please provide all required fields: name, address, phone, and email"
     );
   }
 
@@ -33,16 +102,13 @@ export const addBranch = asyncHandler(async (req: Request, res: Response) => {
     sunday: "Closed",
   };
 
-  // Check if branch with same ID already exists
-  const existingBranch = await Branch.findOne({ id });
-  if (existingBranch) {
-    res.status(400);
-    throw new Error("Branch with this ID already exists");
-  }
+  // Generate unique branch ID from name
+  const baseId = generateBranchId(name);
+  const uniqueId = await ensureUniqueId(baseId);
 
   // Create new branch
   const branch = await Branch.create({
-    id,
+    id: uniqueId,
     name,
     address,
     phone,
@@ -51,7 +117,7 @@ export const addBranch = asyncHandler(async (req: Request, res: Response) => {
     staff: staff || [],
   });
 
-  logger.info(`New branch added: ${name}`);
+  logger.info(`New branch added: ${name} with ID: ${uniqueId}`);
 
   res.status(201).json({
     success: true,
@@ -103,30 +169,91 @@ export const getBranchById = asyncHandler(
  */
 export const updateBranch = asyncHandler(
   async (req: Request, res: Response) => {
-    const { name, address, phone, email, hours } = req.body;
+    // Debug logging
+    console.log("=== updateBranch Debug Info ===");
+    console.log("Request method:", req.method);
+    console.log("Request params:", req.params);
+    console.log("Request body:", req.body);
+    console.log("Content-Type:", req.headers["content-type"]);
+    console.log("=== End Debug Info ===");
 
-    // Find branch
-    let branch = await Branch.findOne({ id: req.params.id });
+    const { id } = req.params;
 
-    if (!branch) {
-      res.status(404);
-      throw new Error("Branch not found");
+    // Check if req.body exists and is not empty
+    if (!req.body || Object.keys(req.body).length === 0) {
+      res.status(400).json({
+        success: false,
+        error:
+          "Request body is missing or empty. Please send data in JSON format with Content-Type: application/json",
+      });
+      return;
     }
 
-    // Update branch
-    branch = await Branch.findOneAndUpdate(
-      { id: req.params.id },
-      { name, address, phone, email, hours },
-      { new: true, runValidators: true }
-    );
+    const { name, address, phone, email, hours } = req.body;
 
-    logger.info(`Branch updated: ${branch?.name}`);
+    try {
+      // Find branch by custom id or MongoDB _id
+      let branch;
 
-    res.status(200).json({
-      success: true,
-      data: branch,
-      message: "Branch updated successfully",
-    });
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        // Try finding by MongoDB _id first
+        branch = await Branch.findById(id);
+
+        // If not found by _id, try by custom id field
+        if (!branch) {
+          branch = await Branch.findOne({ id: id });
+        }
+      } else {
+        // Find by custom id field
+        branch = await Branch.findOne({ id: id });
+      }
+
+      if (!branch) {
+        res.status(404).json({
+          success: false,
+          error: "Branch not found",
+        });
+        return;
+      }
+
+      // Prepare update data (only include fields that are provided)
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (address !== undefined) updateData.address = address;
+      if (phone !== undefined) updateData.phone = phone;
+      if (email !== undefined) updateData.email = email;
+      if (hours !== undefined) updateData.hours = hours;
+
+      // Update branch using the MongoDB _id
+      const updatedBranch = await Branch.findByIdAndUpdate(
+        branch._id,
+        updateData,
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedBranch) {
+        res.status(404).json({
+          success: false,
+          error: "Failed to update branch",
+        });
+        return;
+      }
+
+      logger.info(`Branch updated: ${updatedBranch.name}`);
+
+      res.status(200).json({
+        success: true,
+        data: updatedBranch,
+        message: "Branch updated successfully",
+      });
+    } catch (error: any) {
+      logger.error(`Error updating branch: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update branch",
+        details: error.message,
+      });
+    }
   }
 );
 
@@ -137,20 +264,48 @@ export const updateBranch = asyncHandler(
  */
 export const deleteBranch = asyncHandler(
   async (req: Request, res: Response) => {
-    const branch = await Branch.findOne({ id: req.params.id });
+    const { id } = req.params;
 
-    if (!branch) {
-      res.status(404);
-      throw new Error("Branch not found");
+    try {
+      let branch;
+
+      // Check if it's a MongoDB ObjectId or custom id
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        // Try finding by MongoDB _id first
+        branch = await Branch.findById(id);
+
+        // If not found by _id, try by custom id field
+        if (!branch) {
+          branch = await Branch.findOne({ id: id });
+        }
+      } else {
+        // Find by custom id field
+        branch = await Branch.findOne({ id: id });
+      }
+
+      if (!branch) {
+        res.status(404).json({
+          success: false,
+          error: "Branch not found",
+        });
+        return;
+      }
+
+      // Delete using MongoDB _id
+      await Branch.findByIdAndDelete(branch._id);
+
+      logger.info(`Branch deleted: ${branch.name}`);
+
+      res.status(200).json({
+        success: true,
+        message: "Branch deleted successfully",
+      });
+    } catch (error: any) {
+      logger.error(`Error deleting branch: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete branch",
+      });
     }
-
-    await Branch.deleteOne({ id: req.params.id });
-
-    logger.info(`Branch deleted: ${branch.name}`);
-
-    res.status(200).json({
-      success: true,
-      message: "Branch deleted successfully",
-    });
   }
 );

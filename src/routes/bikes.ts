@@ -10,22 +10,15 @@ import { protect, authorize } from "../middleware/authmiddleware";
 
 const router = express.Router();
 
-//
-router.get("/getBikes", getBikes);
-//
-router.get("/getBike/:id", getBikeById);
+// Public routes - GET requests with query parameters
+router.get("/", getBikes);
+router.get("/:id", getBikeById);
 
-//
+router.post("/search", getBikes);
+
+// Protected routes - Admin only
 router.post("/addBikes", protect, authorize("Super-Admin"), addBikes);
-
-//
-router.post(
-  "/updateBike/:id",
-  protect,
-  authorize("Super-Admin"),
-  updateBikeById
-);
-//
-router.post("/getBikes", protect, authorize("Super-Admin"), deleteBikeById);
+router.put("/:id", protect, authorize("Super-Admin"), updateBikeById);
+router.delete("/:id", protect, authorize("Super-Admin"), deleteBikeById);
 
 export default router;
