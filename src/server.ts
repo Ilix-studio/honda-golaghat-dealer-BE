@@ -11,6 +11,7 @@ import staffRoutes from "./routes/staff";
 import serviceBookingRoutes from "./routes/serviceBooking";
 import configRoutes from "./routes/config";
 import cloudinaryRoutes from "./routes/cloudinary";
+import getApprovedRoutes from "./routes/getapproved";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -62,6 +63,7 @@ app.use("/api/staff", staffRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/cloudinary", cloudinaryRoutes);
+app.use("/api/getapproved", getApprovedRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);
