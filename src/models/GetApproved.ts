@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-// Define the interface for GetApproved document
+// Define the interface for GetApproved document with bike information
 export interface IGetApprovedDocument extends Document {
   firstName: string;
   lastName: string;
@@ -24,6 +24,49 @@ export interface IGetApprovedDocument extends Document {
   branch?: mongoose.Types.ObjectId; // Reference to branch
   termsAccepted: boolean;
   privacyPolicyAccepted: boolean;
+
+  // NEW: Bike enquiry information
+  bikeEnquiry?: {
+    bikeId?: mongoose.Types.ObjectId; // Reference to specific bike
+    bikeModel?: string; // Manual bike model entry
+    category?:
+      | "sport"
+      | "adventure"
+      | "cruiser"
+      | "touring"
+      | "naked"
+      | "electric";
+    priceRange?: {
+      min: number;
+      max: number;
+    };
+    preferredFeatures?: string[];
+    intendedUse?:
+      | "daily-commute"
+      | "long-touring"
+      | "sport-riding"
+      | "off-road"
+      | "leisure"
+      | "business";
+    previousBikeExperience?:
+      | "first-time"
+      | "beginner"
+      | "intermediate"
+      | "experienced";
+    urgency?: "immediate" | "within-month" | "within-3months" | "exploring";
+    additionalRequirements?: string;
+    tradeInBike?: {
+      hasTradeIn: boolean;
+      currentBikeModel?: string;
+      currentBikeYear?: number;
+      estimatedValue?: number;
+      condition?: "excellent" | "good" | "fair" | "poor";
+    };
+  };
+
+  // Enhanced enquiry type
+  enquiryType: "general-financing" | "specific-bike" | "trade-in" | "upgrade";
+
   createdAt: Date;
   updatedAt: Date;
 
@@ -42,9 +85,100 @@ export interface IGetApprovedDocument extends Document {
     amount: number,
     validDays?: number
   ): Promise<IGetApprovedDocument>;
+  addBikeEnquiry(bikeInfo: any): Promise<IGetApprovedDocument>;
 }
 
-// Create the schema
+// Sub-schema for bike enquiry
+const BikeEnquirySchema = new Schema({
+  bikeId: {
+    type: Schema.Types.ObjectId,
+    ref: "Bikes",
+  },
+  bikeModel: {
+    type: String,
+    trim: true,
+  },
+  category: {
+    type: String,
+    enum: ["sport", "adventure", "cruiser", "touring", "naked", "electric"],
+  },
+  priceRange: {
+    min: {
+      type: Number,
+      min: 0,
+    },
+    max: {
+      type: Number,
+      min: 0,
+    },
+  },
+  preferredFeatures: [String],
+  intendedUse: {
+    type: String,
+    enum: [
+      "daily-commute",
+      "long-touring",
+      "sport-riding",
+      "off-road",
+      "leisure",
+      "business",
+    ],
+  },
+  previousBikeExperience: {
+    type: String,
+    enum: ["first-time", "beginner", "intermediate", "experienced"],
+  },
+  urgency: {
+    type: String,
+    enum: ["immediate", "within-month", "within-3months", "exploring"],
+    default: "exploring",
+  },
+  additionalRequirements: {
+    type: String,
+    trim: true,
+    maxlength: [500, "Additional requirements cannot exceed 500 characters"],
+  },
+  tradeInBike: {
+    hasTradeIn: {
+      type: Boolean,
+      default: false,
+    },
+    currentBikeModel: String,
+    currentBikeYear: Number,
+    estimatedValue: Number,
+    condition: {
+      type: String,
+      enum: ["excellent", "good", "fair", "poor"],
+    },
+  },
+});
+
+// Sub-schema for trade-in bike
+const TradeInBikeSchema = new Schema({
+  hasTradeIn: {
+    type: Boolean,
+    default: false,
+  },
+  currentBikeModel: {
+    type: String,
+    trim: true,
+  },
+  currentBikeYear: {
+    type: Number,
+    min: 1980,
+    max: new Date().getFullYear() + 1,
+  },
+  estimatedValue: {
+    type: Number,
+    min: 0,
+  },
+  condition: {
+    type: String,
+    enum: ["excellent", "good", "fair", "poor"],
+  },
+});
+
+// Create the main schema
 const GetApprovedSchema = new Schema<IGetApprovedDocument>(
   {
     firstName: {
@@ -150,6 +284,18 @@ const GetApprovedSchema = new Schema<IGetApprovedDocument>(
         message: "Privacy policy must be accepted",
       },
     },
+
+    // NEW: Bike enquiry information
+    bikeEnquiry: {
+      type: BikeEnquirySchema,
+      default: null,
+    },
+
+    enquiryType: {
+      type: String,
+      enum: ["general-financing", "specific-bike", "trade-in", "upgrade"],
+      default: "general-financing",
+    },
   },
   {
     timestamps: true,
@@ -172,7 +318,8 @@ GetApprovedSchema.virtual("applicationAge").get(function () {
 GetApprovedSchema.methods.generateApplicationId = function (): string {
   const timestamp = Date.now().toString(36);
   const randomStr = Math.random().toString(36).substring(2, 8);
-  return `GA-${timestamp}-${randomStr}`.toUpperCase();
+  const prefix = this.enquiryType === "specific-bike" ? "GAB" : "GA"; // GAB for bike-specific enquiries
+  return `${prefix}-${timestamp}-${randomStr}`.toUpperCase();
 };
 
 // Update status method
@@ -205,6 +352,20 @@ GetApprovedSchema.methods.setPreApproval = async function (
   return await this.save();
 };
 
+// Add bike enquiry method
+GetApprovedSchema.methods.addBikeEnquiry = async function (
+  bikeInfo: any
+): Promise<IGetApprovedDocument> {
+  this.bikeEnquiry = bikeInfo;
+  if (bikeInfo.bikeId || bikeInfo.bikeModel) {
+    this.enquiryType = "specific-bike";
+  }
+  if (bikeInfo.tradeInBike?.hasTradeIn) {
+    this.enquiryType = "trade-in";
+  }
+  return await this.save();
+};
+
 // Pre-save middleware to generate application ID
 GetApprovedSchema.pre("save", function (next) {
   if (!this.applicationId) {
@@ -217,6 +378,9 @@ GetApprovedSchema.pre("save", function (next) {
 GetApprovedSchema.index({ email: 1 });
 GetApprovedSchema.index({ applicationId: 1 });
 GetApprovedSchema.index({ status: 1 });
+GetApprovedSchema.index({ enquiryType: 1 });
+GetApprovedSchema.index({ "bikeEnquiry.bikeId": 1 });
+GetApprovedSchema.index({ "bikeEnquiry.category": 1 });
 GetApprovedSchema.index({ createdAt: -1 });
 
 // Ensure virtual fields are included in JSON output
