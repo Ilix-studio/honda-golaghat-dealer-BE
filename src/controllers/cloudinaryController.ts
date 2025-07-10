@@ -92,11 +92,3 @@ export const deleteCloudinaryImage = asyncHandler(
     }
   }
 );
-
-// Add this to your .env file to check if values are being loaded properly
-// SERVER SIDE:
-console.log("CLOUDINARY CONFIG:", {
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET?.substring(0, 3) + "...",
-});
