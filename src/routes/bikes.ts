@@ -5,6 +5,7 @@ import {
   getBikeById,
   getBikes,
   updateBikeById,
+  uploadImages,
 } from "../controllers/bikes.controller";
 import { protect, authorize } from "../middleware/authmiddleware";
 
@@ -14,11 +15,23 @@ const router = express.Router();
 router.get("/", getBikes);
 router.get("/:id", getBikeById);
 
-router.post("/search", getBikes);
+router.get("/search", getBikes);
 
 // Protected routes - Admin only
-router.post("/addBikes", protect, authorize("Super-Admin"), addBikes);
-router.put("/:id", protect, authorize("Super-Admin"), updateBikeById);
-router.delete("/:id", protect, authorize("Super-Admin"), deleteBikeById);
+router.post(
+  "/addBikes",
+  protect,
+  authorize("Super-Admin"),
+  uploadImages,
+  addBikes
+);
+router.put(
+  "put/:id",
+  protect,
+  authorize("Super-Admin"),
+  uploadImages,
+  updateBikeById
+);
+router.delete("del/:id", protect, authorize("Super-Admin"), deleteBikeById);
 
 export default router;

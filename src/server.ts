@@ -16,9 +16,10 @@ import getApprovedRoutes from "./routes/getapproved";
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
 
+dotenv.config();
+
 // Create Express application
 const app: Application = express();
-dotenv.config();
 
 const PORT = process.env.PORT || 8080;
 
@@ -68,10 +69,24 @@ app.use("/api/getapproved", getApprovedRoutes);
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);
 
-// Error handling middleware
+// Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Something went wrong!" });
+  console.error("Global error handler:", {
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.status(500).json({
+    success: false,
+    error: "Something went wrong!",
+    message:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Internal server error",
+  });
 });
 
 // Centralized Error Handler

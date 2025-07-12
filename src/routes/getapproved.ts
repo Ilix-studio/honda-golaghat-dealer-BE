@@ -1,3 +1,4 @@
+// src/routes/getapproved.ts
 import express from "express";
 import { authorize, protect } from "../middleware/authmiddleware";
 import {
@@ -9,8 +10,6 @@ import {
   getApplicationStats,
   getApplicationsByBranch,
   checkApplicationStatus,
-
-  // NEW: Enhanced methods for bike enquiries
   submitApplicationWithBike,
   getApplicationsWithBikes,
   updateBikeEnquiry,
@@ -21,26 +20,26 @@ import {
 const router = express.Router();
 // "/api/getapproved"
 
-// Public routes
-router.post("/", submitApplication);
-router.get("/:id", getApplicationById); // Can be accessed with application ID
+// Public routes - SPECIFIC ROUTES FIRST
 router.post("/check-status", checkApplicationStatus);
 router.post("/with-bike", submitApplicationWithBike);
+router.post("/", submitApplication); // This must come after more specific POST routes
 
-// Protected routes - Admin only
+// Protected routes - SPECIFIC ROUTES FIRST
 router.get(
-  "/",
+  "/stats",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  getAllApplications
+  getApplicationStats
 );
 
-router.put(
-  "/:id/status",
+router.get(
+  "/enquiry-stats",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  updateApplicationStatus
+  getEnquiryStats
 );
+
 router.get(
   "/with-bikes",
   protect,
@@ -49,10 +48,10 @@ router.get(
 );
 
 router.get(
-  "/stats",
+  "/all",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  getApplicationStats
+  getAllApplications
 );
 
 // Branch-specific routes
@@ -63,15 +62,22 @@ router.get(
   getApplicationsByBranch
 );
 
+// Dynamic parameter routes - THESE MUST COME LAST
+router.get("/:id", getApplicationById);
+
+router.put(
+  "/:id/status",
+  protect,
+  authorize("Super-Admin", "Branch-Admin"),
+  updateApplicationStatus
+);
+
 router.put(
   "/:id/bike-enquiry",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   updateBikeEnquiry
 );
-
-// Super-Admin only routes
-router.delete("/:id", protect, authorize("Super-Admin"), deleteApplication);
 
 router.get(
   "/:id/bike-recommendations",
@@ -80,11 +86,7 @@ router.get(
   getBikeRecommendations
 );
 
-router.get(
-  "/enquiry-stats",
-  protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  getEnquiryStats
-);
+// Super-Admin only routes
+router.delete("/:id", protect, authorize("Super-Admin"), deleteApplication);
 
 export default router;

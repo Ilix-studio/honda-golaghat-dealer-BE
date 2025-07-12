@@ -1,17 +1,38 @@
+import multer from "multer";
 import asyncHandler from "express-async-handler";
+import { v2 as cloudinary } from "cloudinary";
 import { Request, Response } from "express";
 import Bikes from "../models/Bikes";
 import mongoose from "mongoose";
+import {
+  deleteFromCloudinary,
+  uploadToCloudinary,
+} from "../utils/cloudinaryHelper";
 
-/**
- * @desc    Add a new bike
- * @route   POST /api/bikes
- * @access  Private
- */
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  },
+});
+
+// Multer middleware for multiple files
+export const uploadImages = upload.array("images", 10); // Max 10 images
+
 export const addBikes = asyncHandler(async (req: Request, res: Response) => {
-  // Debug logging
   console.log("=== addBikes Debug Info ===");
   console.log("Request body:", req.body);
+  console.log("Files:", req.files);
   console.log("=== End Debug Info ===");
 
   // Check if req.body exists and is not empty
@@ -34,7 +55,6 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     transmission,
     features,
     colors,
-    images,
     inStock,
     quantity,
     branch,
@@ -59,7 +79,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  // Validate category is one of the allowed values
+  // Validate category
   const validCategories = [
     "sport",
     "adventure",
@@ -99,7 +119,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
       return;
     }
 
-    // Clean and validate price (remove commas and convert to number)
+    // Clean and validate price
     const priceStr = String(price).replace(/,/g, "");
     cleanPrice = parseFloat(priceStr);
     if (isNaN(cleanPrice) || cleanPrice <= 0) {
@@ -111,7 +131,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Clean and validate power
-    const powerStr = String(power).replace(/[^\d.]/g, ""); // Remove non-numeric characters except decimal
+    const powerStr = String(power).replace(/[^\d.]/g, "");
     cleanPower = parseFloat(powerStr);
     if (isNaN(cleanPower) || cleanPower <= 0) {
       res.status(400).json({
@@ -121,7 +141,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
       return;
     }
 
-    // Clean and validate quantity if provided
+    // Clean and validate quantity
     if (quantity !== undefined && quantity !== null && quantity !== "") {
       cleanQuantity = parseInt(String(quantity));
       if (isNaN(cleanQuantity) || cleanQuantity < 0) {
@@ -140,7 +160,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  // Validate branch is a valid ObjectId
+  // Validate branch ID
   if (!mongoose.Types.ObjectId.isValid(branch)) {
     res.status(400).json({
       success: false,
@@ -161,6 +181,31 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
+  // Handle image uploads
+  let imageUrls: string[] = [];
+
+  try {
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      console.log(`Uploading ${req.files.length} images to Cloudinary...`);
+
+      // Upload all images to Cloudinary
+      const uploadPromises = req.files.map((file) =>
+        uploadToCloudinary(file.buffer, file.originalname)
+      );
+
+      imageUrls = await Promise.all(uploadPromises);
+      console.log("Images uploaded successfully:", imageUrls);
+    }
+  } catch (uploadError: any) {
+    console.error("Error uploading images:", uploadError);
+    res.status(500).json({
+      success: false,
+      error: "Failed to upload images to Cloudinary",
+      details: uploadError.message,
+    });
+    return;
+  }
+
   try {
     const newBike = await Bikes.create({
       modelName: String(modelName).trim(),
@@ -172,7 +217,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
       transmission: String(transmission).trim(),
       features: Array.isArray(features) ? features : [],
       colors: Array.isArray(colors) ? colors : [],
-      images: Array.isArray(images) ? images : [],
+      images: imageUrls, // Store Cloudinary URLs
       inStock: cleanInStock,
       quantity: cleanQuantity,
       branch,
@@ -182,9 +227,29 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
       success: true,
       data: newBike,
       message: "Bike added successfully",
+      uploadedImages: imageUrls.length,
     });
   } catch (error: any) {
     console.error("Error creating bike:", error);
+
+    // If bike creation fails but images were uploaded, we should clean up
+    if (imageUrls.length > 0) {
+      console.log("Cleaning up uploaded images due to database error...");
+      // Extract public_ids from URLs and delete from Cloudinary
+      const cleanupPromises = imageUrls.map(async (url) => {
+        try {
+          const publicId = url.split("/").pop()?.split(".")[0];
+          if (publicId) {
+            await cloudinary.uploader.destroy(
+              `honda-golaghat-dealer/bikes/${publicId}`
+            );
+          }
+        } catch (cleanupError) {
+          console.error("Error cleaning up image:", cleanupError);
+        }
+      });
+      await Promise.allSettled(cleanupPromises);
+    }
 
     // Handle MongoDB validation errors
     if (error.name === "ValidationError") {
@@ -215,7 +280,6 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 });
-
 /**
  * @desc    Get all bikes with optional filtering
  * @route   GET /api/bikes (with query parameters)
@@ -405,6 +469,16 @@ export const updateBikeById = asyncHandler(
       return;
     }
 
+    // Find existing bike first
+    const existingBike = await Bikes.findById(id);
+    if (!existingBike) {
+      res.status(404).json({
+        success: false,
+        error: "Bike not found",
+      });
+      return;
+    }
+
     // Validate category if provided
     if (updateData.category) {
       const validCategories = [
@@ -436,32 +510,150 @@ export const updateBikeById = asyncHandler(
       return;
     }
 
+    // Handle image uploads
+    let newImageUrls: string[] = [];
+    let finalImageUrls: string[] = [...existingBike.images]; // Start with existing images
+
     try {
+      // Upload new images if provided
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        console.log(`Uploading ${req.files.length} new images...`);
+
+        const uploadPromises = req.files.map((file) =>
+          uploadToCloudinary(file.buffer, file.originalname)
+        );
+
+        newImageUrls = await Promise.all(uploadPromises);
+        console.log("New images uploaded successfully:", newImageUrls);
+
+        // Handle image replacement strategy
+        if (
+          updateData.replaceImages === "true" ||
+          updateData.replaceImages === true
+        ) {
+          // Replace all existing images with new ones
+          const oldImages = existingBike.images;
+          finalImageUrls = newImageUrls;
+
+          // Delete old images from Cloudinary
+          const deletePromises = oldImages.map(deleteFromCloudinary);
+          await Promise.allSettled(deletePromises);
+        } else {
+          // Append new images to existing ones
+          finalImageUrls = [...existingBike.images, ...newImageUrls];
+        }
+
+        // Update the images in updateData
+        updateData.images = finalImageUrls;
+      }
+
+      // Handle explicit image URLs in updateData (for manual URL updates)
+      if (
+        updateData.images &&
+        Array.isArray(updateData.images) &&
+        req.files?.length === 0
+      ) {
+        finalImageUrls = updateData.images;
+      }
+
+      // Clean numeric fields if provided
+      if (updateData.year) {
+        const cleanYear = parseInt(String(updateData.year));
+        if (
+          isNaN(cleanYear) ||
+          cleanYear < 1990 ||
+          cleanYear > new Date().getFullYear() + 2
+        ) {
+          res.status(400).json({
+            success: false,
+            error:
+              "Year must be a valid number between 1990 and " +
+              (new Date().getFullYear() + 2),
+          });
+          return;
+        }
+        updateData.year = cleanYear;
+      }
+
+      if (updateData.price) {
+        const priceStr = String(updateData.price).replace(/,/g, "");
+        const cleanPrice = parseFloat(priceStr);
+        if (isNaN(cleanPrice) || cleanPrice <= 0) {
+          res.status(400).json({
+            success: false,
+            error: "Price must be a valid positive number",
+          });
+          return;
+        }
+        updateData.price = cleanPrice;
+      }
+
+      if (updateData.power) {
+        const powerStr = String(updateData.power).replace(/[^\d.]/g, "");
+        const cleanPower = parseFloat(powerStr);
+        if (isNaN(cleanPower) || cleanPower <= 0) {
+          res.status(400).json({
+            success: false,
+            error: "Power must be a valid positive number",
+          });
+          return;
+        }
+        updateData.power = cleanPower;
+      }
+
+      if (updateData.quantity !== undefined) {
+        const cleanQuantity = parseInt(String(updateData.quantity));
+        if (isNaN(cleanQuantity) || cleanQuantity < 0) {
+          res.status(400).json({
+            success: false,
+            error: "Quantity must be a valid non-negative number",
+          });
+          return;
+        }
+        updateData.quantity = cleanQuantity;
+      }
+
+      // Handle boolean fields
+      if (updateData.inStock !== undefined) {
+        if (typeof updateData.inStock === "string") {
+          updateData.inStock = updateData.inStock.toLowerCase() === "true";
+        } else {
+          updateData.inStock = Boolean(updateData.inStock);
+        }
+      }
+
+      // Remove replaceImages flag from updateData before saving
+      delete updateData.replaceImages;
+
+      // Update the bike
       const updatedBike = await Bikes.findByIdAndUpdate(
         id,
         { $set: updateData },
         { new: true, runValidators: true }
-      );
-
-      if (!updatedBike) {
-        res.status(404).json({
-          success: false,
-          error: "Bike not found",
-        });
-        return;
-      }
+      ).populate("branch", "name address");
 
       res.status(200).json({
         success: true,
         data: updatedBike,
         message: "Bike updated successfully",
+        uploadedImages: newImageUrls.length,
+        totalImages: finalImageUrls.length,
       });
-    } catch (error: any) {
+    } catch (uploadError: any) {
+      console.error("Error uploading images:", uploadError);
+
+      // Clean up any uploaded images if bike update fails
+      if (newImageUrls.length > 0) {
+        const cleanupPromises = newImageUrls.map(deleteFromCloudinary);
+        await Promise.allSettled(cleanupPromises);
+      }
+
       res.status(500).json({
         success: false,
-        error: "Failed to update bike",
-        details: error.message,
+        error: "Failed to upload images",
+        details: uploadError.message,
       });
+      return;
     }
   }
 );

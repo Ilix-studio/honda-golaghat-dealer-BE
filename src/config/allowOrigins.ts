@@ -5,6 +5,7 @@ const allowOrigins = [
   "https://tsangpoolhonda.com/",
   "https://tsangpoolhonda.com",
   "https://tsangpoolhonda.com/view-all",
+  "https://tsangpoolhonda.com/bikes/search",
   "https://tsangpoolhonda.com/admin/dashboard",
   "https://tsangpoolhonda.com/admin/superlogin",
   "https://tsangpoolhonda.com/admin/managerlogin",
