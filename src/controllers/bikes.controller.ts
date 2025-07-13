@@ -699,3 +699,80 @@ export const deleteBikeById = asyncHandler(
     }
   }
 );
+/**
+ * @desc    Get all bikes without pagination for comparison
+ * @route   GET /api/bikes/getallbikes
+ * @access  Public
+ */
+export const getAllBikesForComparison = asyncHandler(
+  async (req: Request, res: Response) => {
+    try {
+      // Remove pagination for comparison - get all bikes
+      const bikes = await Bikes.find()
+        .populate("branch", "name address")
+        .select(
+          "modelName category year price engine power transmission features colors images inStock quantity"
+        )
+        .sort({ modelName: 1 });
+
+      res.status(200).json({
+        success: true,
+        count: bikes.length,
+        data: bikes,
+      });
+    } catch (error: any) {
+      console.error("Error fetching all bikes:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch bikes for comparison",
+        details: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * @desc    Get bike by ID with comparison-optimized response
+ * @route   GET /api/bikes/bikeId/:id
+ * @access  Public
+ */
+export const getBikeByIdForComparison = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid bike ID",
+      });
+      return;
+    }
+
+    try {
+      const bike = await Bikes.findById(id)
+        .populate("branch", "name address")
+        .select(
+          "modelName category year price engine power transmission features colors images inStock quantity"
+        );
+
+      if (!bike) {
+        res.status(404).json({
+          success: false,
+          error: "Bike not found",
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: bike,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch bike for comparison",
+        details: error.message,
+      });
+    }
+  }
+);
