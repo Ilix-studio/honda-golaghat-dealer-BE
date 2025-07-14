@@ -2,9 +2,7 @@ import express from "express";
 import {
   addBikes,
   deleteBikeById,
-  getAllBikesForComparison,
   getBikeById,
-  getBikeByIdForComparison,
   getBikes,
   updateBikeById,
   uploadImages,
@@ -36,8 +34,5 @@ router.put(
   updateBikeById
 );
 router.delete("del/:id", protect, authorize("Super-Admin"), deleteBikeById);
-
-router.get("/getallbikes", getAllBikesForComparison);
-router.get("/bikeId/:id", getBikeByIdForComparison);
 
 export default router;
