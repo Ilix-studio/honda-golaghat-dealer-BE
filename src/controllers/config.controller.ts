@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import Bikes from "../models/Bikes";
 import Branch from "../models/Branch";
+import { modelNames } from "mongoose";
 
 /**
  * @desc    Get all bike categories
@@ -58,7 +59,7 @@ export const getBikeModels = asyncHandler(
 
     const bikeModels = bikes.map((bike) => ({
       id: bike._id,
-      name: bike.modelName,
+      modelName: bike.modelName,
       category: bike.category,
     }));
 

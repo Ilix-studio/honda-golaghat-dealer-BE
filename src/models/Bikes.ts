@@ -12,7 +12,7 @@ export interface IBikesDocument extends Document {
     | "electric";
   year: number;
   price: number;
-  engine: string;
+  engineSize: string;
   power: number;
   transmission: string;
   features: string[];
@@ -48,7 +48,7 @@ const BikesSchema = new Schema<IBikesDocument>(
       type: Number,
       required: [true, "Please add price"],
     },
-    engine: {
+    engineSize: {
       type: String,
       required: [true, "Please add engine details"],
     },
