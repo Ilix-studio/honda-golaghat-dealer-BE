@@ -22,7 +22,7 @@ export interface IMCBasicInfo extends Document {
   _id: string;
 
   // Basic Vehicle Info
-  bikeName: string;
+  motorcyclemodelName: string;
   engineNumber: string;
   chassisNumber: string;
   numberPlate: string;

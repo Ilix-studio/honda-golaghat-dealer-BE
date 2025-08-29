@@ -13,7 +13,7 @@ export interface HoursType {
 
 export interface IBranch extends Document {
   id: string;
-  name: string;
+  branchName: string;
   address: string;
   phone: string;
   email: string;
@@ -57,7 +57,7 @@ const BranchSchema = new Schema<IBranch>(
       unique: true,
       trim: true,
     },
-    name: {
+    branchName: {
       type: String,
       required: [true, "Please add branch name"],
       trim: true,

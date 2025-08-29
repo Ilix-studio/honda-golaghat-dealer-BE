@@ -21,7 +21,6 @@ export interface IScootyDocument extends Document {
 const ScootySchema = new Schema<IScootyDocument>(
   {
     modelName: {
-      // Renamed from 'model' to 'modelName'
       type: String,
       required: [true, "Please add scooty model"],
       trim: true,

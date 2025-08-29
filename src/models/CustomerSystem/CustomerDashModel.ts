@@ -61,7 +61,7 @@ const serviceStatusSchema = new Schema<IServiceStatus>({
 // Main Schema
 const mcBasicInfoSchema = new Schema<IMCBasicInfo>(
   {
-    bikeName: {
+    motorcyclemodelName: {
       type: String,
       required: [true, "Bike name is required"],
       trim: true,

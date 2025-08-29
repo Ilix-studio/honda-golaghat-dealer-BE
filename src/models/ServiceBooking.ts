@@ -1,79 +1,5 @@
-import mongoose, { Document, Schema } from "mongoose";
-
-// Define the interface for a service booking
-export interface IServiceBooking extends Document {
-  // Vehicle Information
-  bikeModel: string;
-  year: number;
-  vin?: string;
-  mileage: number;
-  registrationNumber?: string;
-
-  // Service Details
-  serviceType: string;
-  additionalServices: string[];
-
-  // Schedule Information
-  serviceLocation: mongoose.Types.ObjectId;
-  appointmentDate: Date;
-  appointmentTime: string;
-
-  // Customer Information
-  customerName: {
-    firstName: string;
-    lastName: string;
-  };
-  contactInfo: {
-    email: string;
-    phone: string;
-  };
-
-  // Additional Information
-  specialRequests?: string;
-  serviceOptions: {
-    isDropOff: boolean;
-    willWaitOnsite: boolean;
-  };
-
-  // System Fields
-  bookingId: string; // Auto-generated booking reference
-  status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled";
-  priority: "normal" | "urgent";
-  estimatedCost?: number;
-  actualCost?: number;
-  estimatedDuration?: string;
-
-  // Assigned staff and notes
-  assignedTechnician?: string;
-  serviceNotes?: string;
-  internalNotes?: string;
-
-  // Branch reference
-  branch: mongoose.Types.ObjectId;
-
-  // Approval and terms
-  termsAccepted: boolean;
-  termsAcceptedAt: Date;
-
-  // Timestamps
-  createdAt: Date;
-  updatedAt: Date;
-  confirmedAt?: Date;
-  completedAt?: Date;
-
-  // Virtual fields
-  customerFullName: string;
-  appointmentDateTime: string;
-  daysUntilAppointment: number;
-
-  // Instance methods
-  confirmBooking(): Promise<IServiceBooking>;
-  cancelBooking(reason?: string): Promise<IServiceBooking>;
-  completeBooking(
-    actualCost?: number,
-    serviceNotes?: string
-  ): Promise<IServiceBooking>;
-}
+import mongoose, { Schema } from "mongoose";
+import { IServiceBooking } from "../types/serviceBooking.types";
 
 // Sub-schema for customer name
 const CustomerNameSchema = new Schema({
@@ -127,32 +53,28 @@ const ServiceOptionsSchema = new Schema({
 const ServiceBookingSchema = new Schema<IServiceBooking>(
   {
     // Vehicle Information
-    bikeModel: {
-      type: String,
-      required: [true, "Bike model is required"],
+    motorcyclemodelName: {
+      type: Schema.Types.ObjectId,
+      ref: "CustomerDashModel",
+      required: [true, "Motorcycle Name is required"],
       trim: true,
     },
-    year: {
-      type: Number,
-      required: [true, "Year is required"],
-      min: [1990, "Year must be 1990 or later"],
-      max: [new Date().getFullYear() + 1, "Year cannot be in the future"],
-    },
-    vin: {
-      type: String,
-      trim: true,
-      uppercase: true,
-      sparse: true, // Allows multiple null values but unique non-null values
+    vehicleAge: {
+      type: Schema.Types.ObjectId,
+      ref: "CustomerDashModel",
+      required: [true, "Vehicle Year is required"],
     },
     mileage: {
       type: Number,
       required: [true, "Mileage is required"],
       min: [0, "Mileage cannot be negative"],
     },
-    registrationNumber: {
-      type: String,
+    rtoCode: {
+      type: Schema.Types.ObjectId,
+      ref: "CustomerDashModel",
       trim: true,
       uppercase: true,
+      required: [true, "RTO Number is required"],
     },
 
     // Service Details
@@ -186,7 +108,6 @@ const ServiceBookingSchema = new Schema<IServiceBooking>(
             "suspension",
             "oil-change",
             "filter-replacement",
-            "tune-up",
           ];
           return services.every((service) => validServices.includes(service));
         },
@@ -195,7 +116,7 @@ const ServiceBookingSchema = new Schema<IServiceBooking>(
     },
 
     // Schedule Information
-    serviceLocation: {
+    branchName: {
       type: Schema.Types.ObjectId,
       ref: "Branch",
       required: [true, "Service location is required"],
