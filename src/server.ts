@@ -12,6 +12,8 @@ import serviceBookingRoutes from "./routes/serviceBooking";
 import configRoutes from "./routes/config";
 import cloudinaryRoutes from "./routes/cloudinary";
 import getApprovedRoutes from "./routes/getapproved";
+//new
+import customerRoutes from "./routes/customer/customer";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -56,6 +58,7 @@ app.listen(PORT, () => {
   console.log(`Listening to http://localhost:${PORT}`);
 });
 
+app.use("/api/cloudinary", cloudinaryRoutes);
 app.use("/api/adminLogin", auth);
 app.use("/api/branch", branchRoutes);
 app.use("/api/bikes", bikes);
@@ -63,8 +66,10 @@ app.use("/api/scooty", scooty);
 app.use("/api/staff", staffRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
 app.use("/api/config", configRoutes);
-app.use("/api/cloudinary", cloudinaryRoutes);
+
 app.use("/api/getapproved", getApprovedRoutes);
+//update
+app.use("/api/customers", customerRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);

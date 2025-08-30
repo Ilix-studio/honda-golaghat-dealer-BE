@@ -14,7 +14,7 @@ import { protect, authorize } from "../middleware/authmiddleware";
 const router = express.Router();
 
 // Public routes
-router.post("/", createServiceBooking);
+router.post("/", createServiceBooking); // by auth customer
 router.get("/availability", checkTimeSlotAvailability);
 router.get("/:id", getServiceBookingById); // Can be accessed with booking ID
 router.put("/:id/cancel", cancelServiceBooking); // Can cancel with booking ID + email
@@ -46,5 +46,8 @@ router.get(
   authorize("Super-Admin", "Branch-Admin"),
   getBranchUpcomingAppointments
 );
+
+// Create a extra route for service detail bill where SA/BM can post
+// and Customer can get service detail bill.
 
 export default router;

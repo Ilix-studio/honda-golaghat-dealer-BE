@@ -134,7 +134,9 @@ export const createBranchM = asyncHandler(
     });
 
     // Log creation
-    logger.info(`Branch manager created for branch: ${branchExists.name}`);
+    logger.info(
+      `Branch manager created for branch: ${branchExists.branchName}`
+    );
 
     // Return success response with credentials
     res.status(201).json({
@@ -143,7 +145,7 @@ export const createBranchM = asyncHandler(
       data: {
         applicationId: branchManager.applicationId,
         password: password, // Only returned once at creation
-        branch: branchExists.name,
+        branch: branchExists.branchName,
       },
     });
   }
@@ -177,7 +179,7 @@ export const deleteBranchM = asyncHandler(
     await BranchManager.findByIdAndDelete(id);
 
     logger.info(
-      `Branch manager deleted from branch: ${branch?.name || "Unknown"}`
+      `Branch manager deleted from branch: ${branch?.branchName || "Unknown"}`
     );
 
     res.status(200).json({
@@ -255,7 +257,7 @@ export const createStaffM = asyncHandler(
 
     const userRole = getUserRole(req.user);
     logger.info(
-      `Staff member ${name} added to branch ${branch.name} by ${userRole}`
+      `Staff member ${name} added to branch ${branch.branchName} by ${userRole}`
     );
 
     res.status(201).json({
@@ -264,7 +266,7 @@ export const createStaffM = asyncHandler(
       data: {
         name,
         position,
-        branch: branch.name,
+        branch: branch.branchName,
       },
     });
   }

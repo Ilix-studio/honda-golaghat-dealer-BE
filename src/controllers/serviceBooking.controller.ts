@@ -20,14 +20,13 @@ import {
 export const createServiceBooking = asyncHandler(
   async (req: Request, res: Response) => {
     const {
-      bikeModel,
-      year,
-      vin,
+      motorcyclemodelName, // Fixed: was bikeModel
+      vehicleAge, // Fixed: was year
       mileage,
-      registrationNumber,
+      rtoCode, // Fixed: was registrationNumber
       serviceType,
       additionalServices,
-      serviceLocation,
+      branchName, // Fixed: was serviceLocation
       appointmentDate,
       appointmentTime,
       firstName,
@@ -42,11 +41,11 @@ export const createServiceBooking = asyncHandler(
 
     // Validate required fields
     if (
-      !bikeModel ||
-      !year ||
+      !motorcyclemodelName ||
+      !vehicleAge ||
       !mileage ||
       !serviceType ||
-      !serviceLocation ||
+      !branchName ||
       !appointmentDate ||
       !appointmentTime ||
       !firstName ||
@@ -59,16 +58,16 @@ export const createServiceBooking = asyncHandler(
       throw new Error("Please provide all required fields");
     }
 
-    // Validate service location exists
-    if (!mongoose.Types.ObjectId.isValid(serviceLocation)) {
+    // Validate branch exists
+    if (!mongoose.Types.ObjectId.isValid(branchName)) {
       res.status(400);
-      throw new Error("Invalid service location ID");
+      throw new Error("Invalid branch ID");
     }
 
-    const branch = await Branch.findById(serviceLocation);
+    const branch = await Branch.findById(branchName);
     if (!branch) {
       res.status(404);
-      throw new Error("Service location not found");
+      throw new Error("Branch not found");
     }
 
     // Validate appointment date is in the future
@@ -80,7 +79,7 @@ export const createServiceBooking = asyncHandler(
 
     // Check for appointment slot availability (basic check)
     const existingBooking = await ServiceBooking.findOne({
-      serviceLocation,
+      branchName,
       appointmentDate: appointmentDateTime,
       appointmentTime,
       status: { $in: ["pending", "confirmed", "in-progress"] },
@@ -95,14 +94,13 @@ export const createServiceBooking = asyncHandler(
 
     // Create the service booking
     const serviceBooking = await ServiceBooking.create({
-      bikeModel,
-      year: parseInt(year),
-      vin: vin || undefined,
+      motorcyclemodelName,
+      vehicleAge,
       mileage: parseInt(mileage),
-      registrationNumber: registrationNumber || undefined,
+      rtoCode,
       serviceType,
       additionalServices: additionalServices || [],
-      serviceLocation,
+      branchName,
       appointmentDate: appointmentDateTime,
       appointmentTime,
       customerName: {
@@ -118,16 +116,13 @@ export const createServiceBooking = asyncHandler(
         isDropOff: isDropOff || false,
         willWaitOnsite: willWaitOnsite || false,
       },
-      branch: serviceLocation, // Assuming service location is the branch
+      branch: branchName, // branch reference
       termsAccepted: true,
       termsAcceptedAt: new Date(),
     });
 
-    // Populate the service location details
-    await serviceBooking.populate(
-      "serviceLocation",
-      "name address phone email"
-    );
+    // Populate the branch details
+    await serviceBooking.populate("branchName", "name address phone email");
 
     logger.info(
       `Service booking created: ${serviceBooking.bookingId} for ${firstName} ${lastName}`
@@ -139,7 +134,7 @@ export const createServiceBooking = asyncHandler(
       data: {
         bookingId: serviceBooking.bookingId,
         appointmentDateTime: serviceBooking.appointmentDateTime,
-        serviceLocation: serviceBooking.serviceLocation,
+        branchName: serviceBooking.branchName,
         estimatedCost: serviceBooking.estimatedCost,
         serviceType: serviceBooking.serviceType,
       },
@@ -156,7 +151,7 @@ export const getServiceBookings = asyncHandler(
   async (req: Request, res: Response) => {
     const {
       status,
-      serviceLocation,
+      branchName, // Fixed: was serviceLocation
       startDate,
       endDate,
       serviceType,
@@ -181,19 +176,19 @@ export const getServiceBookings = asyncHandler(
       query.status = status;
     }
 
-    if (serviceLocation) {
-      if (!mongoose.Types.ObjectId.isValid(serviceLocation as string)) {
+    if (branchName) {
+      if (!mongoose.Types.ObjectId.isValid(branchName as string)) {
         res.status(400);
-        throw new Error("Invalid service location ID");
+        throw new Error("Invalid branch ID");
       }
 
-      // Check if user can access this service location
-      if (req.user && !canAccessBranch(req.user, serviceLocation as string)) {
+      // Check if user can access this branch
+      if (req.user && !canAccessBranch(req.user, branchName as string)) {
         res.status(403);
-        throw new Error("Access denied to this service location");
+        throw new Error("Access denied to this branch");
       }
 
-      query.serviceLocation = serviceLocation;
+      query.branchName = branchName;
     }
 
     if (serviceType) {
@@ -223,7 +218,7 @@ export const getServiceBookings = asyncHandler(
     // Execute query
     const total = await ServiceBooking.countDocuments(query);
     const bookings = await ServiceBooking.find(query)
-      .populate("serviceLocation", "name address phone")
+      .populate("branchName", "name address phone")
       .populate("branch", "name")
       .sort(sort)
       .limit(limitNum)
@@ -277,7 +272,7 @@ export const getServiceBookingById = asyncHandler(
 
     // Populate related data
     await booking.populate([
-      { path: "serviceLocation", select: "name address phone email hours" },
+      { path: "branchName", select: "name address phone email hours" },
       { path: "branch", select: "name address phone email" },
     ]);
 
@@ -298,8 +293,7 @@ export const updateBookingStatus = asyncHandler(
     const { id } = req.params;
     const {
       status,
-      assignedTechnician,
-      serviceNotes,
+      // Removed assignedTechnician, serviceNotes as they are commented out in model
       estimatedCost,
       actualCost,
     } = req.body;
@@ -339,8 +333,6 @@ export const updateBookingStatus = asyncHandler(
 
     // Update fields
     if (status) booking.status = status;
-    if (assignedTechnician) booking.assignedTechnician = assignedTechnician;
-    if (serviceNotes) booking.serviceNotes = serviceNotes;
     if (estimatedCost) booking.estimatedCost = estimatedCost;
     if (actualCost) booking.actualCost = actualCost;
 
@@ -413,14 +405,8 @@ export const cancelServiceBooking = asyncHandler(
       throw new Error("Booking is already cancelled");
     }
 
-    // Cancel the booking directly
-    booking.status = "cancelled";
-    if (reason) {
-      booking.internalNotes = `${
-        booking.internalNotes || ""
-      }\nCancelled: ${reason}`;
-    }
-    await booking.save();
+    // Cancel the booking using the instance method
+    await booking.cancelBooking(reason);
 
     logger.info(
       `Service booking ${booking.bookingId} cancelled. Reason: ${
@@ -473,7 +459,7 @@ export const getBranchUpcomingAppointments = asyncHandler(
       },
       status: { $in: ["pending", "confirmed", "in-progress"] },
     })
-      .populate("serviceLocation", "name")
+      .populate("branchName", "name")
       .sort({ appointmentDate: 1, appointmentTime: 1 });
 
     res.status(200).json({
@@ -599,16 +585,16 @@ export const getBookingStats = asyncHandler(
  */
 export const checkTimeSlotAvailability = asyncHandler(
   async (req: Request, res: Response) => {
-    const { serviceLocation, date } = req.query;
+    const { branchName, date } = req.query; // Fixed: was serviceLocation
 
-    if (!serviceLocation || !date) {
+    if (!branchName || !date) {
       res.status(400);
-      throw new Error("Service location and date are required");
+      throw new Error("Branch and date are required");
     }
 
-    if (!mongoose.Types.ObjectId.isValid(serviceLocation as string)) {
+    if (!mongoose.Types.ObjectId.isValid(branchName as string)) {
       res.status(400);
-      throw new Error("Invalid service location ID");
+      throw new Error("Invalid branch ID");
     }
 
     const appointmentDate = new Date(date as string);
@@ -617,9 +603,9 @@ export const checkTimeSlotAvailability = asyncHandler(
       throw new Error("Date must be in the future");
     }
 
-    // Get all booked time slots for the date and location
+    // Get all booked time slots for the date and branch
     const bookedSlots = await ServiceBooking.find({
-      serviceLocation,
+      branchName,
       appointmentDate,
       status: { $in: ["pending", "confirmed", "in-progress"] },
     }).select("appointmentTime");

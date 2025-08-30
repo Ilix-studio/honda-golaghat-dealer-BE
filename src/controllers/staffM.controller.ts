@@ -59,7 +59,7 @@ export const createStaffM = asyncHandler(
 
     const userRole = getUserRole(req.user);
     logger.info(
-      `Staff member ${name} added to branch ${branch.name} by ${userRole}`
+      `Staff member ${name} added to branch ${branch.branchName} by ${userRole}`
     );
 
     res.status(201).json({
@@ -68,7 +68,7 @@ export const createStaffM = asyncHandler(
       data: {
         name,
         position,
-        branch: branch.name,
+        branch: branch.branchName,
       },
     });
   }
@@ -181,7 +181,9 @@ export const updateStaffMember = asyncHandler(
     await branch.save();
 
     const userRole = getUserRole(req.user);
-    logger.info(`Staff member updated in branch ${branch.name} by ${userRole}`);
+    logger.info(
+      `Staff member updated in branch ${branch.branchName} by ${userRole}`
+    );
 
     res.status(200).json({
       success: true,
@@ -249,7 +251,7 @@ export const removeStaffMember = asyncHandler(
 
     const userRole = getUserRole(req.user);
     logger.info(
-      `Staff member ${removedStaff.name} removed from branch ${branch.name} by ${userRole}`
+      `Staff member ${removedStaff.name} removed from branch ${branch.branchName} by ${userRole}`
     );
 
     res.status(200).json({

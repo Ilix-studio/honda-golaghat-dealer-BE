@@ -239,7 +239,7 @@ export const updateBranch = asyncHandler(
         return;
       }
 
-      logger.info(`Branch updated: ${updatedBranch.name}`);
+      logger.info(`Branch updated: ${updatedBranch.branchName}`);
 
       res.status(200).json({
         success: true,
@@ -294,7 +294,7 @@ export const deleteBranch = asyncHandler(
       // Delete using MongoDB _id
       await Branch.findByIdAndDelete(branch._id);
 
-      logger.info(`Branch deleted: ${branch.name}`);
+      logger.info(`Branch deleted: ${branch.branchName}`);
 
       res.status(200).json({
         success: true,

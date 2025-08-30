@@ -2,7 +2,7 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export interface ICustomer extends Document {
   _id: string;
-  phone: string;
+  phoneNumber: string;
   firstName: string;
   middleName?: string; // Made optional since it's not always required
   lastName: string;
@@ -16,11 +16,13 @@ export interface ICustomer extends Document {
   isVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
+
+  [key: string]: any;
 }
 
 const customerSchema = new Schema<ICustomer>(
   {
-    phone: {
+    phoneNumber: {
       type: String,
       required: [true, "Phone number is required"],
       unique: true,

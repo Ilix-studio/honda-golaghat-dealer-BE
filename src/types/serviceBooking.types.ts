@@ -19,12 +19,12 @@ export interface IServiceBooking extends Document {
 
   // Customer Information
   customerName: {
-    firstName: string;
-    lastName: string;
+    firstName: Types.ObjectId;
+    lastName: Types.ObjectId;
   };
   contactInfo: {
-    email: string;
-    phone: string;
+    email: Types.ObjectId;
+    phone: Types.ObjectId;
   };
 
   // Additional Information

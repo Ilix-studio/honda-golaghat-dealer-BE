@@ -197,7 +197,7 @@ export const getServiceLocations = asyncHandler(
 
     const serviceLocations = branches.map((branch) => ({
       id: branch._id,
-      name: branch.name,
+      name: branch.branchName,
       address: branch.address,
       phone: branch.phone,
       hours: branch.hours,

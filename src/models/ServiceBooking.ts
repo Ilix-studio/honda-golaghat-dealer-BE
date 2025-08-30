@@ -1,16 +1,19 @@
 import mongoose, { Schema } from "mongoose";
 import { IServiceBooking } from "../types/serviceBooking.types";
+import { ref } from "process";
 
 // Sub-schema for customer name
 const CustomerNameSchema = new Schema({
   firstName: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: "Customer",
     required: [true, "First name is required"],
     trim: true,
     maxlength: [50, "First name cannot exceed 50 characters"],
   },
   lastName: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: "Customer",
     required: [true, "Last name is required"],
     trim: true,
     maxlength: [50, "Last name cannot exceed 50 characters"],
@@ -20,7 +23,8 @@ const CustomerNameSchema = new Schema({
 // Sub-schema for contact information
 const ContactInfoSchema = new Schema({
   email: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: "Customer",
     required: [true, "Email is required"],
     trim: true,
     lowercase: true,
@@ -30,7 +34,8 @@ const ContactInfoSchema = new Schema({
     ],
   },
   phone: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: "Customer",
     required: [true, "Phone number is required"],
     trim: true,
     match: [/^[\+]?[1-9][\d]{0,15}$/, "Please provide a valid phone number"],
@@ -191,20 +196,20 @@ const ServiceBookingSchema = new Schema<IServiceBooking>(
     },
 
     // Staff and notes
-    assignedTechnician: {
-      type: String,
-      trim: true,
-    },
-    serviceNotes: {
-      type: String,
-      trim: true,
-      maxlength: [2000, "Service notes cannot exceed 2000 characters"],
-    },
-    internalNotes: {
-      type: String,
-      trim: true,
-      maxlength: [1000, "Internal notes cannot exceed 1000 characters"],
-    },
+    // assignedTechnician: {
+    //   type: String,
+    //   trim: true,
+    // },
+    // serviceNotes: {
+    //   type: String,
+    //   trim: true,
+    //   maxlength: [2000, "Service notes cannot exceed 2000 characters"],
+    // },
+    // internalNotes: {
+    //   type: String,
+    //   trim: true,
+    //   maxlength: [1000, "Internal notes cannot exceed 1000 characters"],
+    // },
 
     // Branch reference
     branch: {
