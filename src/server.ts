@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/dbConnection";
 import { errorHandler, routeNotFound } from "./middleware/errorMiddleware";
+//Routes
 import auth from "./routes/auth";
 import bikes from "./routes/bikes";
 import scooty from "./routes/scooty";
@@ -18,6 +19,7 @@ import customerDashboardRoutes from "./routes/customer/customerDashboard";
 import serviceBookingRoutes from "./routes/serviceBooking";
 import servicePackageRoutes from "./routes/customer/servicePackage";
 import valueAddedServicesRoutes from "./routes/customer/VAS";
+import visitorRoutes from "./routes/visitorR";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -70,6 +72,8 @@ app.use("/api/scooty", scooty);
 app.use("/api/staff", staffRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
+//update
+app.use("/api/visitor", visitorRoutes);
 //update
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-dashboard", customerDashboardRoutes);
