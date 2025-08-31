@@ -5,139 +5,8 @@ import CustomerDashModel from "../../models/CustomerSystem/CustomerDashModel";
 import mongoose from "mongoose";
 import CustomerModel from "../../models/CustomerSystem/CustomerModel";
 import logger from "../../utils/logger";
-
-/**
- * @desc    Get customer dashboard overview
- * @route   GET /api/customer-dashboard
- * @access  Private (Customer)
- */
-export const getCustomerDashboard = asyncHandler(
-  async (req: Request, res: Response) => {
-    const customerId = req.customer?._id;
-
-    const vehicles = await CustomerDashModel.find({
-      customer: customerId,
-      isActive: true,
-    }).populate("customer", "firstName lastName phoneNumber");
-
-    // Calculate dashboard stats
-    const totalVehicles = vehicles.length;
-    const serviceDue = vehicles.filter(
-      (v) =>
-        v.serviceStatus.serviceType === "Due Soon" ||
-        v.serviceStatus.serviceType === "Overdue"
-    ).length;
-    const fitnessExpiring = vehicles.filter((v) => {
-      const daysLeft = Math.ceil(
-        (v.fitnessUpTo.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-      );
-      return daysLeft <= 30 && daysLeft > 0;
-    }).length;
-    const fitnessExpired = vehicles.filter(
-      (v) => v.fitnessUpTo < new Date()
-    ).length;
-
-    res.status(200).json({
-      success: true,
-      data: {
-        overview: {
-          totalVehicles,
-          serviceDue,
-          fitnessExpiring,
-          fitnessExpired,
-        },
-        vehicles: vehicles.slice(0, 3), // Show only first 3 for dashboard
-        hasMoreVehicles: totalVehicles > 3,
-      },
-    });
-  }
-);
-
-/**
- * @desc    Get customer's vehicles
- * @route   GET /api/customer-dashboard/vehicles
- * @access  Private (Customer)
- */
-export const getCustomerVehicles = asyncHandler(
-  async (req: Request, res: Response) => {
-    const customerId = req.customer?._id;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const skip = (page - 1) * limit;
-
-    const total = await CustomerDashModel.countDocuments({
-      customer: customerId,
-      isActive: true,
-    });
-
-    const vehicles = await CustomerDashModel.find({
-      customer: customerId,
-      isActive: true,
-    })
-      .populate("customer", "firstName lastName phoneNumber")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    // Add calculated fields
-    const vehiclesWithCalcs = vehicles.map((vehicle) => {
-      const vehicleData = vehicle.toObject();
-      vehicleData.isFitnessExpired = (vehicle as any).isFitnessExpired();
-      return vehicleData;
-    });
-
-    res.status(200).json({
-      success: true,
-      count: vehicles.length,
-      total,
-      pages: Math.ceil(total / limit),
-      currentPage: page,
-      data: vehiclesWithCalcs,
-    });
-  }
-);
-
-/**
- * @desc    Get vehicle by ID
- * @route   GET /api/customer-dashboard/vehicles/:vehicleId
- * @access  Private (Customer or Admin)
- */
-export const getCustomerVehicleById = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { vehicleId } = req.params;
-    const customerId = req.customer?._id;
-
-    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
-      res.status(400);
-      throw new Error("Invalid vehicle ID");
-    }
-
-    const query: any = { _id: vehicleId, isActive: true };
-
-    // If customer is accessing, ensure they own the vehicle
-    if (req.customer && !req.user) {
-      query.customer = customerId;
-    }
-
-    const vehicle = await CustomerDashModel.findOne(query).populate(
-      "customer",
-      "firstName lastName phoneNumber email"
-    );
-
-    if (!vehicle) {
-      res.status(404);
-      throw new Error("Vehicle not found or access denied");
-    }
-
-    const vehicleData = vehicle.toObject();
-    vehicleData.isFitnessExpired = (vehicle as any).isFitnessExpired();
-
-    res.status(200).json({
-      success: true,
-      data: vehicleData,
-    });
-  }
-);
+import CustomerActiveServiceModel from "../../models/CustomerSystem/CustomerActiveServices";
+import ValueAddedServiceModel from "../../models/CustomerSystem/VASmodel";
 
 /**
  * @desc    Create vehicle (Admin only)
@@ -634,6 +503,278 @@ export const getVehicleServiceHistory = asyncHandler(
     res.status(200).json({
       success: true,
       data: serviceHistory,
+    });
+  }
+);
+/**
+ * @desc    Get customer dashboard overview WITH VAS BADGES
+ * @route   GET /api/customer-dashboard
+ * @access  Private (Customer)
+ */
+export const getCustomerDashboard = asyncHandler(
+  async (req: Request, res: Response) => {
+    const customerId = req.customer?._id;
+
+    // Get customer vehicles
+    const vehicles = await CustomerDashModel.find({
+      customer: customerId,
+      isActive: true,
+    }).populate("customer", "firstName lastName phoneNumber");
+
+    if (vehicles.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: "No vehicles found for customer",
+      });
+      return;
+    }
+
+    // Get active services for each vehicle
+    const vehicleServiceData = await Promise.all(
+      vehicles.map(async (vehicle) => {
+        // Get active VAS for this vehicle
+        const activeServices = await CustomerActiveServiceModel.find({
+          vehicle: vehicle._id,
+          customer: customerId,
+          isActive: true,
+          expiryDate: { $gte: new Date() },
+        }).populate("service", "serviceName serviceType badges");
+
+        // Extract active badges
+        const activeBadges: any[] = [];
+        activeServices.forEach((activeService) => {
+          const service = activeService.service as any;
+          if (service && service.badges) {
+            service.badges.forEach((badge: any) => {
+              if (
+                badge.isActive &&
+                activeService.activeBadges.includes(badge._id.toString())
+              ) {
+                activeBadges.push({
+                  id: badge._id,
+                  name: badge.name,
+                  description: badge.description,
+                  icon: badge.icon,
+                  color: badge.color,
+                  serviceName: service.serviceName,
+                  serviceType: service.serviceType,
+                });
+              }
+            });
+          }
+        });
+
+        return {
+          vehicle: {
+            _id: vehicle._id,
+            motorcyclemodelName: vehicle.motorcyclemodelName,
+            numberPlate: vehicle.numberPlate,
+            serviceStatus: vehicle.serviceStatus,
+          },
+          // Add VAS badges to vehicle data
+          activeBadges,
+          activeServicesCount: activeServices.length,
+        };
+      })
+    );
+
+    // Calculate dashboard stats
+    const totalVehicles = vehicles.length;
+    const serviceDue = vehicles.filter(
+      (v) =>
+        v.serviceStatus.serviceType === "Due Soon" ||
+        v.serviceStatus.serviceType === "Overdue"
+    ).length;
+    const fitnessExpiring = vehicles.filter((v) => {
+      const daysLeft = Math.ceil(
+        (v.fitnessUpTo.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return daysLeft <= 30 && daysLeft > 0;
+    }).length;
+    const fitnessExpired = vehicles.filter(
+      (v) => v.fitnessUpTo < new Date()
+    ).length;
+
+    // Get total active VAS count
+    const totalActiveServices = await CustomerActiveServiceModel.countDocuments(
+      {
+        customer: customerId,
+        isActive: true,
+        expiryDate: { $gte: new Date() },
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          totalVehicles,
+          serviceDue,
+          fitnessExpiring,
+          fitnessExpired,
+          totalActiveServices,
+        },
+        vehicles: vehicleServiceData.slice(0, 3), // Show only first 3 for dashboard
+        hasMoreVehicles: totalVehicles > 3,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Get customer's vehicles WITH BADGES
+ * @route   GET /api/customer-dashboard/vehicles
+ * @access  Private (Customer)
+ */
+export const getCustomerVehicles = asyncHandler(
+  async (req: Request, res: Response) => {
+    const customerId = req.customer?._id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await CustomerDashModel.countDocuments({
+      customer: customerId,
+      isActive: true,
+    });
+
+    const vehicles = await CustomerDashModel.find({
+      customer: customerId,
+      isActive: true,
+    })
+      .populate("customer", "firstName lastName phoneNumber")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Add calculated fields and badges
+    const vehiclesWithCalcsAndBadges = await Promise.all(
+      vehicles.map(async (vehicle) => {
+        const vehicleData = vehicle.toObject();
+        vehicleData.isFitnessExpired = (vehicle as any).isFitnessExpired();
+
+        // Get active services and badges for this vehicle
+        const activeServices = await CustomerActiveServiceModel.find({
+          vehicle: vehicle._id,
+          customer: customerId,
+          isActive: true,
+          expiryDate: { $gte: new Date() },
+        }).populate("service", "serviceName serviceType badges");
+
+        const activeBadges: any[] = [];
+        activeServices.forEach((activeService) => {
+          const service = activeService.service as any;
+          if (service && service.badges) {
+            service.badges.forEach((badge: any) => {
+              if (
+                badge.isActive &&
+                activeService.activeBadges.includes(badge._id.toString())
+              ) {
+                activeBadges.push({
+                  id: badge._id,
+                  name: badge.name,
+                  description: badge.description,
+                  icon: badge.icon,
+                  color: badge.color,
+                  serviceName: service.serviceName,
+                });
+              }
+            });
+          }
+        });
+
+        vehicleData.activeBadges = activeBadges;
+        vehicleData.activeServicesCount = activeServices.length;
+
+        return vehicleData;
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: vehicles.length,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
+      data: vehiclesWithCalcsAndBadges,
+    });
+  }
+);
+
+/**
+ * @desc    Get vehicle by ID WITH BADGES
+ * @route   GET /api/customer-dashboard/vehicles/:vehicleId
+ * @access  Private (Customer or Admin)
+ */
+export const getCustomerVehicleById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { vehicleId } = req.params;
+    const customerId = req.customer?._id;
+
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+      res.status(400);
+      throw new Error("Invalid vehicle ID");
+    }
+
+    const query: any = { _id: vehicleId, isActive: true };
+
+    // If customer is accessing, ensure they own the vehicle
+    if (req.customer && !req.user) {
+      query.customer = customerId;
+    }
+
+    const vehicle = await CustomerDashModel.findOne(query).populate(
+      "customer",
+      "firstName lastName phoneNumber email"
+    );
+
+    if (!vehicle) {
+      res.status(404);
+      throw new Error("Vehicle not found or access denied");
+    }
+
+    const vehicleData = vehicle.toObject();
+    vehicleData.isFitnessExpired = (vehicle as any).isFitnessExpired();
+
+    // Get active services and badges
+    const activeServices = await CustomerActiveServiceModel.find({
+      vehicle: vehicle._id,
+      isActive: true,
+      expiryDate: { $gte: new Date() },
+    }).populate("service");
+
+    const detailedServices = await Promise.all(
+      activeServices.map(async (activeService) => {
+        const service = await ValueAddedServiceModel.findById(
+          activeService.service
+        );
+        const activeBadges = service
+          ? service.badges.filter(
+              (badge: any) =>
+                badge.isActive &&
+                activeService.activeBadges.includes(badge._id.toString())
+            )
+          : [];
+
+        return {
+          _id: activeService._id,
+          serviceName: service?.serviceName,
+          serviceType: service?.serviceType,
+          activationDate: activeService.activationDate,
+          expiryDate: activeService.expiryDate,
+          coverageYears: activeService.coverageYears,
+          purchasePrice: activeService.purchasePrice,
+          activeBadges,
+          remainingDays: (activeService as any).getRemainingCoverage(),
+        };
+      })
+    );
+
+    vehicleData.activeServices = detailedServices;
+
+    res.status(200).json({
+      success: true,
+      data: vehicleData,
     });
   }
 );

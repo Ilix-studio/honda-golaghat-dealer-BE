@@ -16,6 +16,8 @@ import getApprovedRoutes from "./routes/getapproved";
 import customerRoutes from "./routes/customer/customer";
 import customerDashboardRoutes from "./routes/customer/customerDashboard";
 import serviceBookingRoutes from "./routes/serviceBooking";
+import servicePackageRoutes from "./routes/customer/servicePackage";
+import valueAddedServicesRoutes from "./routes/customer/VAS";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -72,6 +74,8 @@ app.use("/api/getapproved", getApprovedRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-dashboard", customerDashboardRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
+app.use("/api/service-packages", servicePackageRoutes);
+app.use("/api/value-added-services", valueAddedServicesRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);
