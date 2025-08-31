@@ -151,9 +151,9 @@ serviceAddonsSchema.pre("save", function (next) {
   next();
 });
 
-const ServiceAddons = mongoose.model<IServiceAddon>(
+const ServiceAddonsModel = mongoose.model<IServiceAddon>(
   "ServiceAddons",
   serviceAddonsSchema
 );
 
-export default ServiceAddons;
+export default ServiceAddonsModel;

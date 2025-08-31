@@ -8,12 +8,14 @@ import bikes from "./routes/bikes";
 import scooty from "./routes/scooty";
 import branchRoutes from "./routes/branches";
 import staffRoutes from "./routes/staff";
-import serviceBookingRoutes from "./routes/serviceBooking";
+
 import configRoutes from "./routes/config";
 import cloudinaryRoutes from "./routes/cloudinary";
 import getApprovedRoutes from "./routes/getapproved";
 //new
 import customerRoutes from "./routes/customer/customer";
+import customerDashboardRoutes from "./routes/customer/customerDashboard";
+import serviceBookingRoutes from "./routes/serviceBooking";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -64,12 +66,12 @@ app.use("/api/branch", branchRoutes);
 app.use("/api/bikes", bikes);
 app.use("/api/scooty", scooty);
 app.use("/api/staff", staffRoutes);
-app.use("/api/service-bookings", serviceBookingRoutes);
 app.use("/api/config", configRoutes);
-
 app.use("/api/getapproved", getApprovedRoutes);
 //update
-app.use("/api/customers", customerRoutes);
+app.use("/api/customer", customerRoutes);
+app.use("/api/customer-dashboard", customerDashboardRoutes);
+app.use("/api/service-bookings", serviceBookingRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);

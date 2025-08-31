@@ -33,27 +33,12 @@ router.post("/resend-otp", resendOTP);
 router.post("/login", customerLogin); // Firebase login
 
 // ===== CUSTOMER ROUTES (Customer authentication required) =====
-router.post(
-  "/profile",
-  protectCustomer,
-
-  createProfile
-);
+router.post("/profile", protectCustomer, createProfile);
 router.get("/profile", protectCustomer, getCustomerProfile);
-router.put(
-  "/profile",
-  protectCustomer,
-
-  updateCustomerProfile
-);
+router.patch("/profile", protectCustomer, updateCustomerProfile);
 
 // Customer can access their own data
-router.get(
-  "/:customerId",
-  protectAdminOrCustomer,
-
-  getCustomerById
-);
+router.get("/:customerId", protectAdminOrCustomer, getCustomerById);
 
 // ===== ADMIN ROUTES (Admin authentication required) =====
 router.get(
@@ -84,12 +69,13 @@ router.get(
 );
 
 // Customer management by admin
-router.put(
+router.patch(
   "/:id/verify",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   verifyCustomer
 );
 router.delete("/:id", protect, authorize("Super-Admin"), deleteCustomer);
+// Add recovery System
 
 export default router;
