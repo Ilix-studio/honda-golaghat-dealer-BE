@@ -114,3 +114,4 @@ app.use(errorHandler);
 connectDB();
 
 export default app;
+//Register not working
