@@ -20,6 +20,7 @@ import serviceBookingRoutes from "./routes/serviceBooking";
 import servicePackageRoutes from "./routes/customer/servicePackage";
 import valueAddedServicesRoutes from "./routes/customer/VAS";
 import visitorRoutes from "./routes/visitorR";
+import motorcycleInfoRoutes from "./routes/customer/motorcycleInfo";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -80,6 +81,7 @@ app.use("/api/customer-dashboard", customerDashboardRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
 app.use("/api/service-packages", servicePackageRoutes);
 app.use("/api/value-added-services", valueAddedServicesRoutes);
+app.use("/api/motorcycle-info", motorcycleInfoRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);
