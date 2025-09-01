@@ -50,7 +50,6 @@ router.patch(
   "/vehicles/:id",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-
   updateCustomerVehicle
 );
 router.delete(
@@ -89,13 +88,13 @@ router.patch(
 );
 
 // Vehicle assignment and transfer
-router.put(
+router.patch(
   "/vehicles/:id/assign",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   assignVehicleToCustomer
 );
-router.put(
+router.patch(
   "/vehicles/:id/transfer",
   protect,
   authorize("Super-Admin", "Branch-Admin"),

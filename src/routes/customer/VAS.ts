@@ -37,7 +37,7 @@ router.get(
   authorize("Super-Admin", "Branch-Admin"),
   getValueAddedServiceById
 );
-router.put(
+router.patch(
   "/admin/:id",
   protect,
   authorize("Super-Admin", "Branch-Admin"),

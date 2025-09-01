@@ -587,7 +587,7 @@ export const checkTimeSlotAvailability = asyncHandler(
   async (req: Request, res: Response) => {
     const { branchName, date } = req.query; // Fixed: was serviceLocation
 
-    if (!branchName || !date) {
+    if (!branchName) {
       res.status(400);
       throw new Error("Branch and date are required");
     }
