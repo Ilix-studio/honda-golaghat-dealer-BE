@@ -6,12 +6,6 @@ import CustomerModel, {
 import ErrorResponse from "../utils/errorResponse";
 import admin from "firebase-admin";
 
-// Initialize Firebase Admin SDK (do this in your server.ts or config file)
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-//   // Add your Firebase config
-// });
-
 // Extend Request interface to include customer
 declare global {
   namespace Express {

@@ -17,7 +17,7 @@ const router = express.Router();
 router.post("/", createServiceBooking); // by auth customer
 router.get("/availability", checkTimeSlotAvailability);
 router.get("/:id", getServiceBookingById); // Can be accessed with booking ID
-router.put("/:id/cancel", cancelServiceBooking); // Can cancel with booking ID + email
+router.delete("/:id/cancel", cancelServiceBooking); // Can cancel with booking ID + email
 
 // Protected routes - Admin only
 router.get(
@@ -26,7 +26,7 @@ router.get(
   authorize("Super-Admin", "Branch-Admin"),
   getServiceBookings
 );
-router.put(
+router.patch(
   "/:id/status",
   protect,
   authorize("Super-Admin", "Branch-Admin"),

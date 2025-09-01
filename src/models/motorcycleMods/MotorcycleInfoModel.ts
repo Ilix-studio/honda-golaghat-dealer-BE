@@ -21,7 +21,7 @@ export interface IMotorcycleInfo extends Document {
   model: string;
   variant?: string;
   year: number;
-  category: "Scooter" | "Motorcycle" | "Sport" | "Cruiser" | "Commuter";
+  category: "Bike" | "Scooty";
   fuelType: "Petrol" | "Electric" | "Hybrid";
 
   // Specifications

@@ -41,6 +41,13 @@ export interface IMCBasicInfo extends Document {
   // Service Information
   serviceStatus: IServiceStatus;
 
+  isFitnessExpired(): boolean;
+  getServiceStatusDescription(): string;
+
+  activeBadges?: any; // or appropriate type
+  activeServicesCount?: number;
+  activeServices?: any; // or appropriate type
+
   // Status
   isActive: boolean;
   createdAt: Date;
