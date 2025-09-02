@@ -10,54 +10,6 @@ import CustomerModel, {
 import logger from "../../utils/logger";
 
 /**
- * @desc    Register customer with phone number and send OTP
- * @route   POST /api/customers/register
- * @access  Public
- */
-export const registerCustomer = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { phoneNumber } = req.body;
-
-    if (!phoneNumber) {
-      res.status(400);
-      throw new Error("Phone number is required");
-    }
-
-    // Check if customer already exists
-    const existingCustomer = await CustomerModel.findOne({ phoneNumber });
-    if (existingCustomer) {
-      res.status(400);
-      throw new Error("Customer with this phone number already exists");
-    }
-
-    // Create unverified customer record
-    const customer = await CustomerModel.create({
-      phoneNumber,
-      firstName: "temp", // Temporary, will be updated in profile creation
-      lastName: "temp",
-      village: "temp",
-      postOffice: "temp",
-      policeStation: "temp",
-      district: "temp",
-      state: "temp",
-      isVerified: false,
-    });
-
-    logger.info(`Customer registration initiated for phone: ${phoneNumber}`);
-
-    res.status(201).json({
-      success: true,
-      message:
-        "Customer registered. Complete OTP verification and create profile.",
-      data: {
-        customerId: customer._id,
-        phoneNumber: customer.phoneNumber,
-      },
-    });
-  }
-);
-
-/**
  * @desc    Verify OTP and link Firebase UID
  * @route   POST /api/customers/verify-otp
  * @access  Public

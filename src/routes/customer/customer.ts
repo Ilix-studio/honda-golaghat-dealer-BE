@@ -2,7 +2,6 @@
 import express from "express";
 
 import {
-  registerCustomer,
   verifyOTP,
   createProfile,
   getCustomerProfile,
@@ -22,6 +21,7 @@ import {
   protectCustomer,
 } from "../../middleware/customerMiddleware";
 import { authorize, protect } from "../../middleware/authmiddleware";
+import { registerCustomer } from "../../controllers/customer/a_register.controller";
 
 const router = express.Router();
 // "/api/customers"
