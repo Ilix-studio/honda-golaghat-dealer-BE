@@ -1,10 +1,6 @@
 import admin from "firebase-admin";
+import serviceAccount from "./tsangpool-honda-otp-firebase-adminsdk-fbsvc-d12f0a6d9e.json";
 
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: "tsangpool-honda-otp",
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    clientEmail:
-      "firebase-adminsdk-fbsvc@tsangpool-honda-otp.iam.gserviceaccount.com",
-  }),
+  credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
 });
