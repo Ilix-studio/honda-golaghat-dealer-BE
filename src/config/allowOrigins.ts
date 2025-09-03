@@ -13,6 +13,9 @@ const allowOrigins = [
   "https://honda-site-golaghat-v2.vercel.app/admin/dashboard",
   "https://honda-site-golaghat-v2.vercel.app/admin/superlogin",
   "https://honda-site-golaghat-v2.vercel.app/admin/managerlogin",
+  "http://localhost:5173/customer-sign-up",
+  "https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=AIzaSyCOLCfkbNXvivcQVujbHOx51697D84BE1g",
+  "",
   "",
 ];
 
