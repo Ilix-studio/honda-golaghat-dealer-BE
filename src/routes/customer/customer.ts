@@ -2,7 +2,6 @@
 import express from "express";
 
 import {
-  verifyOTP,
   createProfile,
   getCustomerProfile,
   updateCustomerProfile,
@@ -10,11 +9,10 @@ import {
   getAllCustomers,
   getCustomerById,
   verifyCustomer,
-  resendOTP,
-  customerLogin,
   getCustomerStats,
   searchCustomers,
   getCustomersByLocation,
+  verifyOTP,
 } from "../../controllers/customer/customer.controller";
 import {
   protectAdminOrCustomer,
@@ -24,16 +22,12 @@ import { authorize, protect } from "../../middleware/authmiddleware";
 import { registerCustomer } from "../../controllers/customer/a_register.controller";
 
 const router = express.Router();
-// "/api/customers"
+// "/api/customer"
 
-// ===== PUBLIC ROUTES (No authentication) =====
-router.post("/register", registerCustomer);
 router.post("/verify-otp", verifyOTP);
-router.post("/resend-otp", resendOTP);
-router.post("/login", customerLogin); // Firebase login
 
 // ===== CUSTOMER ROUTES (Customer authentication required) =====
-router.post("/profile", protectCustomer, createProfile);
+router.post("/profile", createProfile);
 router.get("/profile", protectCustomer, getCustomerProfile);
 router.patch("/profile", protectCustomer, updateCustomerProfile);
 

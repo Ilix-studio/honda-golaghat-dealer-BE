@@ -4,7 +4,29 @@ import CustomerModel, {
   ICustomer,
 } from "../models/CustomerSystem/CustomerModel";
 import ErrorResponse from "../utils/errorResponse";
+
 import admin from "firebase-admin";
+
+// Initialize Firebase Admin if not already done
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      type: "service_account",
+      project_id: process.env.FIREBASE_PROJECT_ID || "tsangpool-honda-otp",
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      client_email:
+        process.env.FIREBASE_CLIENT_EMAIL ||
+        "firebase-adminsdk-fbsvc@tsangpool-honda-otp.iam.gserviceaccount.com",
+      client_id: process.env.FIREBASE_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
+      universe_domain: "googleapis.com",
+    } as admin.ServiceAccount),
+  });
+}
 
 // Extend Request interface to include customer
 declare global {
@@ -22,17 +44,17 @@ export const protectCustomer = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     let token;
 
-    // Check if token exists in Authorization header
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")
     ) {
       try {
-        // Get token from header
         token = req.headers.authorization.split(" ")[1];
+        console.log("Token received:", token.substring(0, 50) + "...");
 
         // Verify Firebase token
         const decodedToken = await admin.auth().verifyIdToken(token);
+        console.log("Token decoded successfully, UID:", decodedToken.uid);
 
         // Find customer by Firebase UID
         const customer = await CustomerModel.findOne({
@@ -40,19 +62,25 @@ export const protectCustomer = asyncHandler(
         });
 
         if (!customer) {
+          console.log("No customer found with UID:", decodedToken.uid);
           res.status(401);
           throw new Error("Customer not found with this token");
         }
 
         if (!customer.isVerified) {
+          console.log("Customer not verified:", customer.phoneNumber);
           res.status(401);
           throw new Error("Customer account is not verified");
         }
 
         req.customer = customer;
         next();
-      } catch (error) {
-        console.error("Firebase token verification error:", error);
+      } catch (error: any) {
+        console.error("Firebase token verification detailed error:");
+        console.error("Error message:", error.message);
+        console.error("Error code:", error.code);
+        console.error("Full error:", JSON.stringify(error, null, 2));
+
         res.status(401);
         throw new Error("Not authorized, invalid token");
       }
@@ -62,7 +90,6 @@ export const protectCustomer = asyncHandler(
     }
   }
 );
-
 /**
  * Optional customer authentication - doesn't throw error if no token
  */
