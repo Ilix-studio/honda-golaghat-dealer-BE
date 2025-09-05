@@ -6,6 +6,11 @@ import CustomerModel, {
 import ErrorResponse from "../utils/errorResponse";
 
 import admin from "firebase-admin";
+import {
+  BaseCustomerModel,
+  IBaseCustomer,
+} from "../models/CustomerSystem/BaseCustomer/BaseCustomer";
+import { CustomerProfileModel } from "../models/CustomerSystem/BaseCustomer/CustomerProfile";
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {
@@ -32,22 +37,20 @@ if (!admin.apps.length) {
 declare global {
   namespace Express {
     interface Request {
-      customer?: ICustomer;
+      customer?: IBaseCustomer;
     }
   }
 }
 
 /**
- * Protect routes - Verify Firebase token and get customer
+ * Protect customer routes - requires customer authentication
+ * Uses Firebase token verification
  */
 export const protectCustomer = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     let token;
 
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
+    if (req.headers.authorization?.startsWith("Bearer")) {
       try {
         token = req.headers.authorization.split(" ")[1];
         console.log("Token received:", token.substring(0, 50) + "...");
@@ -56,8 +59,8 @@ export const protectCustomer = asyncHandler(
         const decodedToken = await admin.auth().verifyIdToken(token);
         console.log("Token decoded successfully, UID:", decodedToken.uid);
 
-        // Find customer by Firebase UID
-        const customer = await CustomerModel.findOne({
+        // Find customer by Firebase UID using BaseCustomer model
+        const customer = await BaseCustomerModel.findOne({
           firebaseUid: decodedToken.uid,
         });
 
@@ -90,6 +93,7 @@ export const protectCustomer = asyncHandler(
     }
   }
 );
+
 /**
  * Optional customer authentication - doesn't throw error if no token
  */
@@ -97,15 +101,12 @@ export const optionalCustomerAuth = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     let token;
 
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
+    if (req.headers.authorization?.startsWith("Bearer")) {
       try {
         token = req.headers.authorization.split(" ")[1];
         const decodedToken = await admin.auth().verifyIdToken(token);
 
-        const customer = await CustomerModel.findOne({
+        const customer = await BaseCustomerModel.findOne({
           firebaseUid: decodedToken.uid,
         });
 
@@ -114,7 +115,7 @@ export const optionalCustomerAuth = asyncHandler(
         }
       } catch (error) {
         // Silently fail for optional auth
-        console.log("Optional auth failed:");
+        console.log("Optional auth failed:", error);
       }
     }
 
@@ -124,22 +125,19 @@ export const optionalCustomerAuth = asyncHandler(
 
 /**
  * Combined middleware for admin or customer access
- * Checks both admin token and customer token
+ * Checks both Firebase token (customer) and JWT token (admin)
  */
 export const protectAdminOrCustomer = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    let token;
+    let firebaseToken;
 
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
-      token = req.headers.authorization.split(" ")[1];
+    if (req.headers.authorization?.startsWith("Bearer")) {
+      firebaseToken = req.headers.authorization.split(" ")[1];
 
       try {
         // First try Firebase token (customer)
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        const customer = await CustomerModel.findOne({
+        const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+        const customer = await BaseCustomerModel.findOne({
           firebaseUid: decodedToken.uid,
         });
 
@@ -151,7 +149,7 @@ export const protectAdminOrCustomer = asyncHandler(
         // If Firebase fails, try JWT token (admin)
         try {
           const { verifyToken } = require("../utils/jwt");
-          const decoded = verifyToken(token);
+          const decoded = verifyToken(firebaseToken);
 
           // Check admin or branch manager (reuse existing logic)
           const Admin = require("../models/Admin");
@@ -185,7 +183,6 @@ export const protectAdminOrCustomer = asyncHandler(
 
 /**
  * Check if customer owns the resource
- * Use this for routes where customers can only access their own data
  */
 export const ensureCustomerOwnership = (
   customerIdParam: string = "customerId"
@@ -206,38 +203,44 @@ export const ensureCustomerOwnership = (
     next();
   };
 };
-
 /**
  * Verify customer profile completion
+ * Now checks the separate CustomerProfile model
  */
-export const ensureProfileComplete = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  if (!req.customer) {
-    return next(new ErrorResponse("Customer authentication required", 401));
-  }
+export const ensureProfileComplete = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.customer) {
+      return next(new ErrorResponse("Customer authentication required", 401));
+    }
 
-  const requiredFields = [
-    "firstName",
-    "lastName",
-    "village",
-    "district",
-    "state",
-  ];
-  const missingFields = requiredFields.filter((field) => !req.customer![field]);
-
-  if (missingFields.length > 0) {
-    return res.status(400).json({
-      success: false,
-      error: "Profile incomplete",
-      message: `Please complete your profile. Missing: ${missingFields.join(
-        ", "
-      )}`,
-      missingFields,
+    const profile = await CustomerProfileModel.findOne({
+      customer: req.customer._id,
     });
-  }
 
-  next();
-};
+    if (!profile || !profile.profileCompleted) {
+      const requiredFields = [
+        "firstName",
+        "lastName",
+        "village",
+        "district",
+        "state",
+      ];
+
+      const missingFields = requiredFields.filter(
+        (field) => !profile?.[field as keyof typeof profile]
+      );
+
+      res.status(400).json({
+        success: false,
+        error: "Profile incomplete",
+        message: `Please complete your profile. Missing: ${missingFields.join(
+          ", "
+        )}`,
+        missingFields,
+      });
+      return;
+    }
+
+    next();
+  }
+);

@@ -15,6 +15,7 @@ import cloudinaryRoutes from "./routes/cloudinary";
 import getApprovedRoutes from "./routes/getapproved";
 //new
 import customerRoutes from "./routes/customer/customer";
+import customerProfile from "./routes/customer/customerProfile";
 import customerDashboardRoutes from "./routes/customer/customerDashboard";
 import serviceBookingRoutes from "./routes/serviceBooking";
 import servicePackageRoutes from "./routes/customer/servicePackage";
@@ -77,6 +78,7 @@ app.use("/api/getapproved", getApprovedRoutes);
 app.use("/api/visitor", visitorRoutes);
 //update
 app.use("/api/customer", customerRoutes);
+app.use("/api/customer-profile", customerProfile);
 app.use("/api/customer-dashboard", customerDashboardRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
 app.use("/api/service-packages", servicePackageRoutes);

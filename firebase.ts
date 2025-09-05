@@ -39,5 +39,3 @@ if (!admin.apps.length) {
     throw error;
   }
 }
-
-export default admin;
