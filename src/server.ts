@@ -79,11 +79,11 @@ app.use("/api/visitor", visitorRoutes);
 //update
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
+app.use("/api/motorcycle-info", motorcycleInfoRoutes);
 app.use("/api/customer-dashboard", customerDashboardRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
 app.use("/api/service-packages", servicePackageRoutes);
 app.use("/api/value-added-services", valueAddedServicesRoutes);
-app.use("/api/motorcycle-info", motorcycleInfoRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);

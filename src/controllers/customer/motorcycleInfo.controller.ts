@@ -1,4 +1,3 @@
-// src/controllers/motorcycleInfo.controller.ts
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
@@ -14,7 +13,6 @@ export const createMotorcycleInfo = asyncHandler(
     try {
       // Validate required fields
       const {
-        brand,
         model,
         year,
         category,
@@ -30,9 +28,8 @@ export const createMotorcycleInfo = asyncHandler(
         priceRange,
       } = req.body;
 
-      // Check for existing motorcycle with same brand and model
+      // Check for existing motorcycle with model
       const existingMotorcycle = await MotorcycleInfo.findOne({
-        brand: brand?.toUpperCase(),
         model,
         year,
         category,
@@ -51,7 +48,7 @@ export const createMotorcycleInfo = asyncHandler(
       if (existingMotorcycle) {
         res.status(400).json({
           success: false,
-          error: "Motorcycle with this brand and model already exists",
+          error: "Motorcycle with model already exists",
         });
         return;
       }
@@ -86,8 +83,7 @@ export const createMotorcycleInfo = asyncHandler(
       } else if (error.code === 11000) {
         res.status(400).json({
           success: false,
-          error:
-            "Duplicate entry: Motorcycle with this brand and model already exists",
+          error: "Duplicate entry: Motorcycle with model already exists",
         });
       } else {
         res.status(500).json({
@@ -115,9 +111,6 @@ export const getAllMotorcycleInfo = asyncHandler(
       // Build filter
       const filter: any = {};
 
-      if (req.query.brand) {
-        filter.brand = new RegExp(req.query.brand as string, "i");
-      }
       if (req.query.category) {
         filter.category = req.query.category;
       }
@@ -169,9 +162,6 @@ export const getActiveMotorcycles = asyncHandler(
 
       const filter: any = { isActive: true };
 
-      if (req.query.brand) {
-        filter.brand = new RegExp(req.query.brand as string, "i");
-      }
       if (req.query.category) {
         filter.category = req.query.category;
       }
@@ -182,7 +172,7 @@ export const getActiveMotorcycles = asyncHandler(
       const total = await MotorcycleInfo.countDocuments(filter);
       const motorcycles = await MotorcycleInfo.find(filter)
         .select("-__v")
-        .sort({ brand: 1, model: 1 })
+        .sort({ model: 1 })
         .skip(skip)
         .limit(limit);
 
@@ -274,13 +264,11 @@ export const updateMotorcycleInfo = asyncHandler(
         return;
       }
 
-      // If brand and model are being updated, check for duplicates
-      if (req.body.brand || req.body.model) {
-        const brand = req.body.brand?.toUpperCase() || existingMotorcycle.brand;
+      // If model are being updated, check for duplicates
+      if (req.body.model) {
         const model = req.body.model || existingMotorcycle.model;
 
         const duplicateMotorcycle = await MotorcycleInfo.findOne({
-          brand,
           model,
           _id: { $ne: id },
         });
@@ -288,7 +276,7 @@ export const updateMotorcycleInfo = asyncHandler(
         if (duplicateMotorcycle) {
           res.status(400).json({
             success: false,
-            error: "Motorcycle with this brand and model already exists",
+            error: "Motorcycle with model already exists",
           });
           return;
         }
@@ -381,55 +369,6 @@ export const deleteMotorcycleInfo = asyncHandler(
 );
 
 /**
- * @desc    Get motorcycles by brand
- * @route   GET /api/motorcycle-info/brand/:brand
- * @access  Public
- */
-export const getMotorcyclesByBrand = asyncHandler(
-  async (req: Request, res: Response) => {
-    try {
-      const { brand } = req.params;
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
-      const skip = (page - 1) * limit;
-
-      const filter: any = {
-        brand: new RegExp(brand, "i"),
-        isActive: true,
-      };
-
-      if (req.query.category) {
-        filter.category = req.query.category;
-      }
-      if (req.query.fuelType) {
-        filter.fuelType = req.query.fuelType;
-      }
-
-      const total = await MotorcycleInfo.countDocuments(filter);
-      const motorcycles = await MotorcycleInfo.find(filter)
-        .sort({ model: 1 })
-        .skip(skip)
-        .limit(limit);
-
-      res.status(200).json({
-        success: true,
-        count: motorcycles.length,
-        total,
-        pages: Math.ceil(total / limit),
-        currentPage: page,
-        data: motorcycles,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        error: "Failed to fetch motorcycles by brand",
-        details: error.message,
-      });
-    }
-  }
-);
-
-/**
  * @desc    Get motorcycles by category
  * @route   GET /api/motorcycle-info/category/:category
  * @access  Public
@@ -464,16 +403,13 @@ export const getMotorcyclesByCategory = asyncHandler(
         isActive: true,
       };
 
-      if (req.query.brand) {
-        filter.brand = new RegExp(req.query.brand as string, "i");
-      }
       if (req.query.fuelType) {
         filter.fuelType = req.query.fuelType;
       }
 
       const total = await MotorcycleInfo.countDocuments(filter);
       const motorcycles = await MotorcycleInfo.find(filter)
-        .sort({ brand: 1, model: 1 })
+        .sort({ model: 1 })
         .skip(skip)
         .limit(limit);
 
@@ -522,7 +458,6 @@ export const searchMotorcycles = asyncHandler(
       const filter: any = {
         isActive: true,
         $or: [
-          { brand: searchRegex },
           { model: searchRegex },
           { variant: searchRegex },
           { category: searchRegex },
@@ -533,7 +468,7 @@ export const searchMotorcycles = asyncHandler(
 
       const total = await MotorcycleInfo.countDocuments(filter);
       const motorcycles = await MotorcycleInfo.find(filter)
-        .sort({ brand: 1, model: 1 })
+        .sort({ model: 1 })
         .skip(skip)
         .limit(limit);
 
@@ -581,13 +516,6 @@ export const getMotorcycleStats = asyncHandler(
         { $sort: { count: -1 } },
       ]);
 
-      // Stats by brand
-      const brandStats = await MotorcycleInfo.aggregate([
-        { $group: { _id: "$brand", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 10 },
-      ]);
-
       // Price range stats
       const priceStats = await MotorcycleInfo.aggregate([
         {
@@ -609,7 +537,6 @@ export const getMotorcycleStats = asyncHandler(
           inactive: totalMotorcycles - activeMotorcycles,
           categoryBreakdown: categoryStats,
           fuelTypeBreakdown: fuelTypeStats,
-          topBrands: brandStats,
           priceStatistics: priceStats[0] || {},
         },
       });
@@ -652,7 +579,6 @@ export const bulkCreateMotorcycles = asyncHandler(
 
           // Check for existing motorcycle
           const existingMotorcycle = await MotorcycleInfo.findOne({
-            brand: motorcycleData.brand?.toUpperCase(),
             model: motorcycleData.model,
           });
 

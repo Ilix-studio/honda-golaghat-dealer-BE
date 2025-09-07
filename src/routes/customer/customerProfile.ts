@@ -16,8 +16,8 @@ const router = express.Router();
 
 // ===== CUSTOMER ROUTES (Customer authentication required) =====
 router.post("/create", protectCustomer, createProfile);
-router.get("/profile", protectCustomer, getCustomerProfile);
-router.patch("/profile", protectCustomer, updateCustomerProfile);
+router.get("/get", protectCustomer, getCustomerProfile);
+router.patch("/update", protectCustomer, updateCustomerProfile);
 
 // Customer can access their own data
 router.get("/:customerId", protectAdminOrCustomer, getCustomerById);

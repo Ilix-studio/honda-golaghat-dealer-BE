@@ -17,7 +17,6 @@ import { tyresBrakesSchema } from "./tyresBrakes";
 // Main Motorcycle Info Interface
 export interface IMotorcycleInfo extends Document {
   _id: string;
-  brand: string;
   model: string;
   variant?: string;
   year: number;
@@ -51,12 +50,6 @@ export interface IMotorcycleInfo extends Document {
 // Main Schema
 const motorcycleInfoSchema = new Schema<IMotorcycleInfo>(
   {
-    brand: {
-      type: String,
-      required: [true, "Brand is required"],
-      trim: true,
-      uppercase: true,
-    },
     model: {
       type: String,
       required: [true, "Model is required"],
@@ -160,14 +153,14 @@ const motorcycleInfoSchema = new Schema<IMotorcycleInfo>(
 );
 
 // Indexes for better query performance
-motorcycleInfoSchema.index({ brand: 1, model: 1, year: 1 });
+motorcycleInfoSchema.index({ model: 1, year: 1 });
 motorcycleInfoSchema.index({ category: 1 });
 motorcycleInfoSchema.index({ fuelType: 1 });
 motorcycleInfoSchema.index({ isActive: 1 });
 motorcycleInfoSchema.index({ "priceRange.min": 1, "priceRange.max": 1 });
 
-// Compound index for brand and model lookup
-motorcycleInfoSchema.index({ brand: 1, model: 1 }, { unique: true });
+// Compound index for model lookup
+motorcycleInfoSchema.index({ model: 1 }, { unique: true });
 
 // Pre-save validation
 motorcycleInfoSchema.pre("save", function (next) {

@@ -8,7 +8,6 @@ import {
   getMotorcycleInfoById,
   updateMotorcycleInfo,
   deleteMotorcycleInfo,
-  getMotorcyclesByBrand,
   getMotorcyclesByCategory,
   searchMotorcycles,
   getMotorcycleStats,
@@ -21,7 +20,6 @@ const router = express.Router();
 // ===== PUBLIC ROUTES =====
 router.get("/active", getActiveMotorcycles);
 router.get("/search", searchMotorcycles);
-router.get("/brand/:brand", getMotorcyclesByBrand);
 router.get("/category/:category", getMotorcyclesByCategory);
 router.get("/:id", getMotorcycleInfoById);
 
