@@ -58,7 +58,7 @@ const servicePackageSchema = new Schema<IServicePackage>({
 // Main Schema
 const serviceAddonsSchema = new Schema<IServiceAddon>(
   {
-    motorcycleModel: {
+    modelName: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "MotorcycleInfo",
       required: [true, "Motorcycle model is required"],

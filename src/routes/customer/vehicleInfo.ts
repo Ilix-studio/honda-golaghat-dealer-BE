@@ -3,15 +3,15 @@ import express from "express";
 import {
   bulkCreateMotorcycles,
   getActiveMotorcycles,
-  createMotorcycleInfo,
-  getAllMotorcycleInfo,
-  getMotorcycleInfoById,
-  updateMotorcycleInfo,
-  deleteMotorcycleInfo,
+  createVehicleInfo,
+  getAllVehicleInfo,
+  getVehicleInfoById,
+  updateVehicleInfo,
+  deleteVehicleInfo,
   getMotorcyclesByCategory,
   searchMotorcycles,
   getMotorcycleStats,
-} from "../../controllers/customer/motorcycleInfo.controller";
+} from "../../controllers/customer/vehicleInfo.controller";
 import { authorize, protect } from "../../middleware/authmiddleware";
 
 const router = express.Router();
@@ -21,21 +21,21 @@ const router = express.Router();
 router.get("/active", getActiveMotorcycles);
 router.get("/search", searchMotorcycles);
 router.get("/category/:category", getMotorcyclesByCategory);
-router.get("/:id", getMotorcycleInfoById);
+router.get("/:id", getVehicleInfoById);
 
 // ===== ADMIN ROUTES (Super-Admin and Branch-Admin) =====
 router.post(
   "/",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  createMotorcycleInfo
+  createVehicleInfo
 );
 
 router.get(
   "/admin/all",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  getAllMotorcycleInfo
+  getAllVehicleInfo
 );
 
 router.get(
@@ -52,14 +52,14 @@ router.post(
   bulkCreateMotorcycles
 );
 
-router.put(
+router.patch(
   "/:id",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  updateMotorcycleInfo
+  updateVehicleInfo
 );
 
 // ===== SUPER-ADMIN ONLY ROUTES =====
-router.delete("/:id", protect, authorize("Super-Admin"), deleteMotorcycleInfo);
+router.delete("/:id", protect, authorize("Super-Admin"), deleteVehicleInfo);
 
 export default router;

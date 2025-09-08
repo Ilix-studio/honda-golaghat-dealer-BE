@@ -16,7 +16,7 @@ export interface IServicePackage {
 // Service Addon Interface
 export interface IServiceAddon extends Document {
   _id: string;
-  motorcycleModel: mongoose.Types.ObjectId;
+  modelName: mongoose.Types.ObjectId;
 
   // Free Services (Usually first 3 services)
   firstService: IServicePackage;

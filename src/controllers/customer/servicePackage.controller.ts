@@ -13,7 +13,7 @@ import logger from "../../utils/logger";
 export const createServicePackage = asyncHandler(
   async (req: Request, res: Response) => {
     const {
-      motorcycleModel,
+      modelName,
       firstService,
       secondService,
       thirdService,
@@ -30,7 +30,7 @@ export const createServicePackage = asyncHandler(
 
     // Check if service package already exists for this motorcycle
     const existingPackage = await ServiceAddonsModel.findOne({
-      motorcycleModel,
+      modelName,
       isActive: true,
     });
 
@@ -42,7 +42,7 @@ export const createServicePackage = asyncHandler(
     }
 
     const servicePackage = await ServiceAddonsModel.create({
-      motorcycleModel,
+      modelName,
       firstService,
       secondService,
       thirdService,
@@ -57,10 +57,10 @@ export const createServicePackage = asyncHandler(
       applicableBranches: applicableBranches || [],
     });
 
-    await servicePackage.populate("motorcycleModel", "modelName category");
+    await servicePackage.populate("modelName", "modelName category");
 
     logger.info(
-      `Service package created for motorcycle: ${servicePackage.motorcycleModel}`
+      `Service package created for motorcycle: ${servicePackage.modelName}`
     );
 
     res.status(201).json({
@@ -86,13 +86,13 @@ export const getAllServicePackages = asyncHandler(
     if (req.query.isActive !== undefined) {
       filter.isActive = req.query.isActive === "true";
     }
-    if (req.query.motorcycleModel) {
-      filter.motorcycleModel = req.query.motorcycleModel;
+    if (req.query.modelName) {
+      filter.modelName = req.query.modelName;
     }
 
     const total = await ServiceAddonsModel.countDocuments(filter);
     const servicePackages = await ServiceAddonsModel.find(filter)
-      .populate("motorcycleModel", "modelName category")
+      .populate("modelName", "modelName category")
       .populate("applicableBranches", "name address")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -124,7 +124,7 @@ export const getServicePackageById = asyncHandler(
     }
 
     const servicePackage = await ServiceAddonsModel.findById(id)
-      .populate("motorcycleModel", "modelName category")
+      .populate("modelName", "modelName category")
       .populate("applicableBranches", "name address");
 
     if (!servicePackage) {
@@ -164,10 +164,10 @@ export const updateServicePackage = asyncHandler(
       req.body,
       { new: true, runValidators: true }
     )
-      .populate("motorcycleModel", "modelName category")
+      .populate("modelName", "modelName category")
       .populate("applicableBranches", "name address");
 
-    logger.info(`Service package updated: ${updatedPackage?.motorcycleModel}`);
+    logger.info(`Service package updated: ${updatedPackage?.modelName}`);
 
     res.status(200).json({
       success: true,
@@ -195,7 +195,7 @@ export const deleteServicePackage = asyncHandler(
     // Soft delete
     await ServiceAddonsModel.findByIdAndUpdate(id, { isActive: false });
 
-    logger.warn(`Service package deleted: ${servicePackage.motorcycleModel}`);
+    logger.warn(`Service package deleted: ${servicePackage.modelName}`);
 
     res.status(200).json({
       success: true,
@@ -219,10 +219,10 @@ export const getServicePackagesByMotorcycle = asyncHandler(
     }
 
     const servicePackages = await ServiceAddonsModel.find({
-      motorcycleModel: motorcycleId,
+      modelName: motorcycleId,
       isActive: true,
     })
-      .populate("motorcycleModel", "modelName category")
+      .populate("modelName", "modelName category")
       .populate("applicableBranches", "name address")
       .sort({ createdAt: -1 });
 
@@ -248,7 +248,7 @@ export const getActiveServicePackages = asyncHandler(
       validFrom: { $lte: currentDate },
       validUntil: { $gte: currentDate },
     })
-      .populate("motorcycleModel", "modelName category")
+      .populate("modelName", "modelName category")
       .populate("applicableBranches", "name address")
       .sort({ createdAt: -1 });
 
@@ -262,15 +262,15 @@ export const getActiveServicePackages = asyncHandler(
 
 /**
  * @desc    Get customer service packages
- * @route   GET /api/service-packages/customer/:motorcycleModel
+ * @route   GET /api/service-packages/customer/:modelName
  * @access  Private (Customer)
  */
 export const getCustomerServicePackages = asyncHandler(
   async (req: Request, res: Response) => {
-    const { motorcycleModel } = req.params;
+    const { modelName } = req.params;
     const customerId = req.customer?._id;
 
-    if (!mongoose.Types.ObjectId.isValid(motorcycleModel)) {
+    if (!mongoose.Types.ObjectId.isValid(modelName)) {
       res.status(400);
       throw new Error("Invalid motorcycle model ID");
     }
@@ -289,12 +289,12 @@ export const getCustomerServicePackages = asyncHandler(
 
     const currentDate = new Date();
     const servicePackage = await ServiceAddonsModel.findOne({
-      motorcycleModel,
+      modelName,
       isActive: true,
       validFrom: { $lte: currentDate },
       validUntil: { $gte: currentDate },
     })
-      .populate("motorcycleModel", "modelName category")
+      .populate("modelName", "modelName category")
       .populate("applicableBranches", "name address");
 
     if (!servicePackage) {
@@ -372,14 +372,14 @@ export const getCustomerServicePackages = asyncHandler(
       data: {
         vehicle: {
           _id: customerVehicle._id,
-          motorcyclemodelName: customerVehicle.motorcyclemodelName,
+          modelNameName: customerVehicle.modelNameName,
           numberPlate: customerVehicle.numberPlate,
           serviceHistory: customerVehicle.serviceStatus.serviceHistory,
           currentKilometers: customerVehicle.serviceStatus.kilometers,
         },
         servicePackage: {
           _id: servicePackage._id,
-          motorcycleModel: servicePackage.motorcycleModel,
+          modelName: servicePackage.modelName,
           validFrom: servicePackage.validFrom,
           validUntil: servicePackage.validUntil,
         },

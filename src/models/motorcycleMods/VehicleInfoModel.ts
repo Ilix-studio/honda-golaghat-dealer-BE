@@ -15,13 +15,14 @@ import { transmissionSchema } from "./transmission";
 import { tyresBrakesSchema } from "./tyresBrakes";
 
 // Main Motorcycle Info Interface
-export interface IMotorcycleInfo extends Document {
+export interface IVehicleInfo extends Document {
   _id: string;
   model: string;
   variant?: string;
   year: number;
   category: "Bike" | "Scooty";
   fuelType: "Petrol" | "Electric" | "Hybrid";
+  fuelNorms: "BSIV" | "BSVI";
 
   // Specifications
   bodyDimensions: IBodyDimensions;
@@ -48,7 +49,7 @@ export interface IMotorcycleInfo extends Document {
 }
 
 // Main Schema
-const motorcycleInfoSchema = new Schema<IMotorcycleInfo>(
+const vehicleInfoSchema = new Schema<IVehicleInfo>(
   {
     model: {
       type: String,
@@ -153,17 +154,17 @@ const motorcycleInfoSchema = new Schema<IMotorcycleInfo>(
 );
 
 // Indexes for better query performance
-motorcycleInfoSchema.index({ model: 1, year: 1 });
-motorcycleInfoSchema.index({ category: 1 });
-motorcycleInfoSchema.index({ fuelType: 1 });
-motorcycleInfoSchema.index({ isActive: 1 });
-motorcycleInfoSchema.index({ "priceRange.min": 1, "priceRange.max": 1 });
+vehicleInfoSchema.index({ model: 1, year: 1 });
+vehicleInfoSchema.index({ category: 1 });
+vehicleInfoSchema.index({ fuelType: 1 });
+vehicleInfoSchema.index({ isActive: 1 });
+vehicleInfoSchema.index({ "priceRange.min": 1, "priceRange.max": 1 });
 
 // Compound index for model lookup
-motorcycleInfoSchema.index({ model: 1 }, { unique: true });
+vehicleInfoSchema.index({ model: 1 }, { unique: true });
 
 // Pre-save validation
-motorcycleInfoSchema.pre("save", function (next) {
+vehicleInfoSchema.pre("save", function (next) {
   // Ensure max price is greater than min price
   if (this.priceRange.max <= this.priceRange.min) {
     return next(new Error("Maximum price must be greater than minimum price"));
@@ -171,9 +172,9 @@ motorcycleInfoSchema.pre("save", function (next) {
   next();
 });
 
-const MotorcycleInfo = mongoose.model<IMotorcycleInfo>(
-  "MotorcycleInfo",
-  motorcycleInfoSchema
+const VehicleInfo = mongoose.model<IVehicleInfo>(
+  "vehicleInfo",
+  vehicleInfoSchema
 );
 
-export default MotorcycleInfo;
+export default VehicleInfo;

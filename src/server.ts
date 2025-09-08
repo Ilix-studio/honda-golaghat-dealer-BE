@@ -21,7 +21,7 @@ import serviceBookingRoutes from "./routes/serviceBooking";
 import servicePackageRoutes from "./routes/customer/servicePackage";
 import valueAddedServicesRoutes from "./routes/customer/VAS";
 import visitorRoutes from "./routes/visitorR";
-import motorcycleInfoRoutes from "./routes/customer/motorcycleInfo";
+import vehicleInfoRoutes from "./routes/customer/vehicleInfo";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -79,7 +79,7 @@ app.use("/api/visitor", visitorRoutes);
 //update
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
-app.use("/api/motorcycle-info", motorcycleInfoRoutes);
+app.use("/api/vehicle-info", vehicleInfoRoutes);
 app.use("/api/customer-dashboard", customerDashboardRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
 app.use("/api/service-packages", servicePackageRoutes);

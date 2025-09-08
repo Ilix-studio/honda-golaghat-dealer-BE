@@ -1,14 +1,14 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import MotorcycleInfo from "../../models/motorcycleMods/MotorcycleInfoModel";
+import VehicleInfo from "../../models/motorcycleMods/VehicleInfoModel";
 
 /**
  * @desc    Create motorcycle info
  * @route   POST /api/motorcycle-info
  * @access  Private (Super-Admin, Branch-Admin)
  */
-export const createMotorcycleInfo = asyncHandler(
+export const createVehicleInfo = asyncHandler(
   async (req: Request, res: Response) => {
     try {
       // Validate required fields
@@ -29,7 +29,7 @@ export const createMotorcycleInfo = asyncHandler(
       } = req.body;
 
       // Check for existing motorcycle with model
-      const existingMotorcycle = await MotorcycleInfo.findOne({
+      const existingMotorcycle = await VehicleInfo.findOne({
         model,
         year,
         category,
@@ -63,12 +63,12 @@ export const createMotorcycleInfo = asyncHandler(
       }
 
       // Create motorcycle info
-      const motorcycleInfo = await MotorcycleInfo.create(req.body);
+      const vehicleInfo = await VehicleInfo.create(req.body);
 
       res.status(201).json({
         success: true,
         message: "Motorcycle info created successfully",
-        data: motorcycleInfo,
+        data: vehicleInfo,
       });
     } catch (error: any) {
       if (error.name === "ValidationError") {
@@ -101,7 +101,7 @@ export const createMotorcycleInfo = asyncHandler(
  * @route   GET /api/motorcycle-info/admin/all
  * @access  Private (Super-Admin, Branch-Admin)
  */
-export const getAllMotorcycleInfo = asyncHandler(
+export const getAllVehicleInfo = asyncHandler(
   async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
@@ -124,8 +124,8 @@ export const getAllMotorcycleInfo = asyncHandler(
         filter.year = parseInt(req.query.year as string);
       }
 
-      const total = await MotorcycleInfo.countDocuments(filter);
-      const motorcycles = await MotorcycleInfo.find(filter)
+      const total = await VehicleInfo.countDocuments(filter);
+      const motorcycles = await VehicleInfo.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -169,8 +169,8 @@ export const getActiveMotorcycles = asyncHandler(
         filter.fuelType = req.query.fuelType;
       }
 
-      const total = await MotorcycleInfo.countDocuments(filter);
-      const motorcycles = await MotorcycleInfo.find(filter)
+      const total = await VehicleInfo.countDocuments(filter);
+      const motorcycles = await VehicleInfo.find(filter)
         .select("-__v")
         .sort({ model: 1 })
         .skip(skip)
@@ -199,7 +199,7 @@ export const getActiveMotorcycles = asyncHandler(
  * @route   GET /api/motorcycle-info/:id
  * @access  Public
  */
-export const getMotorcycleInfoById = asyncHandler(
+export const getVehicleInfoById = asyncHandler(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -212,7 +212,7 @@ export const getMotorcycleInfoById = asyncHandler(
         return;
       }
 
-      const motorcycle = await MotorcycleInfo.findById(id);
+      const motorcycle = await VehicleInfo.findById(id);
 
       if (!motorcycle) {
         res.status(404).json({
@@ -241,7 +241,7 @@ export const getMotorcycleInfoById = asyncHandler(
  * @route   PUT /api/motorcycle-info/:id
  * @access  Private (Super-Admin, Branch-Admin)
  */
-export const updateMotorcycleInfo = asyncHandler(
+export const updateVehicleInfo = asyncHandler(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -255,7 +255,7 @@ export const updateMotorcycleInfo = asyncHandler(
       }
 
       // Check if motorcycle exists
-      const existingMotorcycle = await MotorcycleInfo.findById(id);
+      const existingMotorcycle = await VehicleInfo.findById(id);
       if (!existingMotorcycle) {
         res.status(404).json({
           success: false,
@@ -268,7 +268,7 @@ export const updateMotorcycleInfo = asyncHandler(
       if (req.body.model) {
         const model = req.body.model || existingMotorcycle.model;
 
-        const duplicateMotorcycle = await MotorcycleInfo.findOne({
+        const duplicateMotorcycle = await VehicleInfo.findOne({
           model,
           _id: { $ne: id },
         });
@@ -294,7 +294,7 @@ export const updateMotorcycleInfo = asyncHandler(
         }
       }
 
-      const updatedMotorcycle = await MotorcycleInfo.findByIdAndUpdate(
+      const updatedMotorcycle = await VehicleInfo.findByIdAndUpdate(
         id,
         { $set: req.body },
         { new: true, runValidators: true }
@@ -331,7 +331,7 @@ export const updateMotorcycleInfo = asyncHandler(
  * @route   DELETE /api/motorcycle-info/:id
  * @access  Private (Super-Admin only)
  */
-export const deleteMotorcycleInfo = asyncHandler(
+export const deleteVehicleInfo = asyncHandler(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -344,7 +344,7 @@ export const deleteMotorcycleInfo = asyncHandler(
         return;
       }
 
-      const motorcycle = await MotorcycleInfo.findByIdAndDelete(id);
+      const motorcycle = await VehicleInfo.findByIdAndDelete(id);
 
       if (!motorcycle) {
         res.status(404).json({
@@ -407,8 +407,8 @@ export const getMotorcyclesByCategory = asyncHandler(
         filter.fuelType = req.query.fuelType;
       }
 
-      const total = await MotorcycleInfo.countDocuments(filter);
-      const motorcycles = await MotorcycleInfo.find(filter)
+      const total = await VehicleInfo.countDocuments(filter);
+      const motorcycles = await VehicleInfo.find(filter)
         .sort({ model: 1 })
         .skip(skip)
         .limit(limit);
@@ -466,8 +466,8 @@ export const searchMotorcycles = asyncHandler(
         ],
       };
 
-      const total = await MotorcycleInfo.countDocuments(filter);
-      const motorcycles = await MotorcycleInfo.find(filter)
+      const total = await VehicleInfo.countDocuments(filter);
+      const motorcycles = await VehicleInfo.find(filter)
         .sort({ model: 1 })
         .skip(skip)
         .limit(limit);
@@ -499,25 +499,25 @@ export const searchMotorcycles = asyncHandler(
 export const getMotorcycleStats = asyncHandler(
   async (req: Request, res: Response) => {
     try {
-      const totalMotorcycles = await MotorcycleInfo.countDocuments();
-      const activeMotorcycles = await MotorcycleInfo.countDocuments({
+      const totalMotorcycles = await VehicleInfo.countDocuments();
+      const activeMotorcycles = await VehicleInfo.countDocuments({
         isActive: true,
       });
 
       // Stats by category
-      const categoryStats = await MotorcycleInfo.aggregate([
+      const categoryStats = await VehicleInfo.aggregate([
         { $group: { _id: "$category", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]);
 
       // Stats by fuel type
-      const fuelTypeStats = await MotorcycleInfo.aggregate([
+      const fuelTypeStats = await VehicleInfo.aggregate([
         { $group: { _id: "$fuelType", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]);
 
       // Price range stats
-      const priceStats = await MotorcycleInfo.aggregate([
+      const priceStats = await VehicleInfo.aggregate([
         {
           $group: {
             _id: null,
@@ -578,7 +578,7 @@ export const bulkCreateMotorcycles = asyncHandler(
           const motorcycleData = motorcycles[i];
 
           // Check for existing motorcycle
-          const existingMotorcycle = await MotorcycleInfo.findOne({
+          const existingMotorcycle = await VehicleInfo.findOne({
             model: motorcycleData.model,
           });
 
@@ -591,7 +591,7 @@ export const bulkCreateMotorcycles = asyncHandler(
             continue;
           }
 
-          const createdMotorcycle = await MotorcycleInfo.create(motorcycleData);
+          const createdMotorcycle = await VehicleInfo.create(motorcycleData);
           results.successful.push(createdMotorcycle);
         } catch (error: any) {
           results.failed.push({
