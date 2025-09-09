@@ -75,15 +75,16 @@ app.use("/api/staff", staffRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
 //update
+app.use("/api/service-packages", servicePackageRoutes);
 app.use("/api/visitor", visitorRoutes);
 //update
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
-app.use("/api/vehicle-info", vehicleInfoRoutes);
+app.use("/api/customer-vehicles", vehicleInfoRoutes);
 app.use("/api/customer-dashboard", customerDashboardRoutes);
-app.use("/api/service-bookings", serviceBookingRoutes);
-app.use("/api/service-packages", servicePackageRoutes);
+
 app.use("/api/value-added-services", valueAddedServicesRoutes);
+app.use("/api/service-bookings", serviceBookingRoutes);
 
 // Apply rate limiting to API routes except health checks
 app.use("/api", apiLimiter);
