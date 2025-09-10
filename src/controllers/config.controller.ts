@@ -14,6 +14,7 @@ export const getCategories = asyncHandler(
     const categories = [
       { id: "all", name: "All Bikes" },
       { id: "sport", name: "Sport" },
+      { id: "commuter", name: "Commuter" },
       { id: "adventure", name: "Adventure" },
       { id: "cruiser", name: "Cruiser" },
       { id: "touring", name: "Touring" },

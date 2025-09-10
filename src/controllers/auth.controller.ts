@@ -79,10 +79,42 @@ export const loginSuperAdmin = asyncHandler(
  */
 export const logoutSuperAdmin = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    res.status(200).json({
-      success: true,
-      message: "Logout successful",
-    });
+    try {
+      // Get user from req (set by protect middleware)
+      const user = (req as any).user;
+
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          message: "No user found, already logged out",
+        });
+        return;
+      }
+
+      // Log the logout action
+      logger.info(`Admin logged out: ${user.email || user.id}`);
+
+      // Set secure headers to clear any cookies if you're using them
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Logout successful",
+        data: {
+          loggedOutAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error("Logout error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error during logout",
+      });
+    }
   }
 );
 

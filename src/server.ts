@@ -66,12 +66,12 @@ app.listen(PORT, () => {
   console.log(`Listening to http://localhost:${PORT}`);
 });
 
-app.use("/api/cloudinary", cloudinaryRoutes);
 app.use("/api/adminLogin", auth);
 app.use("/api/branch", branchRoutes);
 app.use("/api/bikes", bikes);
 app.use("/api/scooty", scooty);
 app.use("/api/staff", staffRoutes);
+app.use("/api/cloudinary", cloudinaryRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
 //update

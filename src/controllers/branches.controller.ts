@@ -7,11 +7,11 @@ import logger from "../utils/logger";
 import mongoose from "mongoose";
 
 /**
- * Generate a unique branch ID from branch name
+ * Generate a unique branch ID from branch branchName
  */
-const generateBranchId = (name: string): string => {
+const generateBranchId = (branchName: string): string => {
   // Remove "Honda Motorcycles" prefix if present and convert to lowercase
-  const cleanName = name
+  const cleanName = branchName
     .replace(/honda\s*motorcycles?\s*/i, "")
     .trim()
     .toLowerCase()
@@ -42,47 +42,17 @@ const ensureUniqueId = async (baseId: string): Promise<string> => {
  * @access  Private (Super-Admin only)
  */
 export const addBranch = asyncHandler(async (req: Request, res: Response) => {
-  // Debug logging
-  console.log("=== addBranch Debug Info ===");
-  console.log("Request method:", req.method);
-  console.log("Request headers:", req.headers);
-  console.log("Request body:", req.body);
-  console.log("Request body type:", typeof req.body);
-  console.log("Request body keys:", Object.keys(req.body || {}));
-  console.log("Content-Type:", req.headers["content-type"]);
-  console.log("=== End Debug Info ===");
-
-  // Check if req.body exists
-  if (!req.body) {
-    console.error("req.body is undefined");
-    res.status(400).json({
-      success: false,
-      error: "Request body is missing. Please send data in JSON format.",
-    });
-    return;
-  }
-
-  // Check if req.body is empty
-  if (Object.keys(req.body).length === 0) {
-    console.error("req.body is empty");
-    res.status(400).json({
-      success: false,
-      error: "Request body is empty. Please send data in JSON format.",
-    });
-    return;
-  }
-
-  const { name, address, phone, email, hours, staff } = req.body;
+  const { branchName, address, phone, email, hours, staff } = req.body;
 
   // Debug individual fields
   console.log("Extracted fields:");
-  console.log("name:", name);
+  console.log("branchName:", branchName);
   console.log("address:", address);
   console.log("phone:", phone);
   console.log("email:", email);
 
   // Validate required fields (removed 'id' from required fields)
-  if (!name || !address || !phone || !email) {
+  if (!branchName || !address || !phone || !email) {
     res.status(400);
     throw new Error(
       "Please provide all required fields: name, address, phone, and email"
@@ -102,14 +72,14 @@ export const addBranch = asyncHandler(async (req: Request, res: Response) => {
     sunday: "Closed",
   };
 
-  // Generate unique branch ID from name
-  const baseId = generateBranchId(name);
+  // Generate unique branch ID from branchName
+  const baseId = generateBranchId(branchName);
   const uniqueId = await ensureUniqueId(baseId);
 
   // Create new branch
   const branch = await Branch.create({
     id: uniqueId,
-    name,
+    branchName,
     address,
     phone,
     email,
@@ -117,7 +87,7 @@ export const addBranch = asyncHandler(async (req: Request, res: Response) => {
     staff: staff || [],
   });
 
-  logger.info(`New branch added: ${name} with ID: ${uniqueId}`);
+  logger.info(`New branch added: ${branchName} with ID: ${uniqueId}`);
 
   res.status(201).json({
     success: true,
@@ -189,7 +159,7 @@ export const updateBranch = asyncHandler(
       return;
     }
 
-    const { name, address, phone, email, hours } = req.body;
+    const { branchName, address, phone, email, hours } = req.body;
 
     try {
       // Find branch by custom id or MongoDB _id
@@ -218,7 +188,7 @@ export const updateBranch = asyncHandler(
 
       // Prepare update data (only include fields that are provided)
       const updateData: any = {};
-      if (name !== undefined) updateData.name = name;
+      if (branchName !== undefined) updateData.branchName = branchName;
       if (address !== undefined) updateData.address = address;
       if (phone !== undefined) updateData.phone = phone;
       if (email !== undefined) updateData.email = email;

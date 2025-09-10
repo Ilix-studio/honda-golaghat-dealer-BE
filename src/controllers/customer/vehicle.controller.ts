@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import CustomerModel from "../../models/CustomerSystem/CustomerModel";
 import mongoose from "mongoose";
 import logger from "../../utils/logger";
-import CustomerVehicleModel from "../../utils/ApiResponse";
+import CustomerVehicleModel from "../../models/CustomerSystem/VehicleModel";
 
 /**
  * @desc    Get all customer vehicles (Admin)
