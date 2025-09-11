@@ -35,7 +35,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     category,
     year,
     price,
-    engine,
+    engineSize,
     power,
     transmission,
     features,
@@ -51,7 +51,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     !category ||
     !year ||
     !price ||
-    !engine ||
+    !engineSize ||
     !power ||
     !transmission ||
     !branch
@@ -59,7 +59,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     res.status(400).json({
       success: false,
       error:
-        "Please provide all required fields: modelName, category, year, price, engine, power, transmission, branch",
+        "Please provide all required fields: modelName, category, year, price, engineSize, power, transmission, branch",
     });
     return;
   }
@@ -197,7 +197,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
       category,
       year: cleanYear,
       price: cleanPrice,
-      engine: String(engine).trim(),
+      engineSize: String(engineSize).trim(),
       power: cleanPower,
       transmission: String(transmission).trim(),
       features: Array.isArray(features) ? features : [],
@@ -357,8 +357,8 @@ export const getBikes = asyncHandler(async (req: Request, res: Response) => {
     case "newest":
       sort = { year: -1 };
       break;
-    case "engine-size":
-      sort = { engine: -1 };
+    case "engineSize-size":
+      sort = { engineSize: -1 };
       break;
     case "power":
       sort = { power: -1 };
