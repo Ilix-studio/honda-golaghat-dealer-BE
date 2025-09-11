@@ -30,21 +30,6 @@ const upload = multer({
 export const uploadImages = upload.array("images", 10); // Max 10 images
 
 export const addBikes = asyncHandler(async (req: Request, res: Response) => {
-  console.log("=== addBikes Debug Info ===");
-  console.log("Request body:", req.body);
-  console.log("Files:", req.files);
-  console.log("=== End Debug Info ===");
-
-  // Check if req.body exists and is not empty
-  if (!req.body || Object.keys(req.body).length === 0) {
-    res.status(400).json({
-      success: false,
-      error:
-        "Request body is missing or empty. Please send data in JSON format.",
-    });
-    return;
-  }
-
   const {
     modelName,
     category,

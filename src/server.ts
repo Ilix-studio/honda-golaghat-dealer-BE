@@ -66,6 +66,9 @@ app.listen(PORT, () => {
   console.log(`Listening to http://localhost:${PORT}`);
 });
 
+// Apply rate limiting to API routes except health checks
+app.use("/api", apiLimiter);
+
 app.use("/api/adminLogin", auth);
 app.use("/api/branch", branchRoutes);
 app.use("/api/bikes", bikes);
@@ -85,9 +88,6 @@ app.use("/api/customer-dashboard", customerDashboardRoutes);
 
 app.use("/api/value-added-services", valueAddedServicesRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
-
-// Apply rate limiting to API routes except health checks
-app.use("/api", apiLimiter);
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
