@@ -5,34 +5,40 @@ import {
   getBikeById,
   getBikes,
   updateBikeById,
-  uploadImages,
+  getBikesByCategory,
+  searchBikes,
 } from "../controllers/bikes.controller";
 import { protect, authorize } from "../middleware/authmiddleware";
+import { bikeUploadConfig, handleMulterError } from "../config/multerConfig";
 
 const router = express.Router();
+// /api/bikes
 
-// Protected routes - Admin only
+// Public routes
+router.get("/", getBikes);
+router.get("/search", searchBikes);
+router.get("/category/:category", getBikesByCategory);
+router.get("/:id", getBikeById);
+
+// Protected routes (Super-Admin only)
 router.post(
-  "/addBikes",
+  "/add",
   protect,
   authorize("Super-Admin"),
-  uploadImages,
+  bikeUploadConfig.array("images", 10), // Max 10 images
+  handleMulterError,
   addBikes
 );
 
-router.get("/search", getBikes);
-
-// Public routes - GET requests with query parameters
-router.get("/", getBikes);
-router.get("/:id", getBikeById);
-
 router.put(
-  "put/:id",
+  "/put/:id",
   protect,
   authorize("Super-Admin"),
-  uploadImages,
+  bikeUploadConfig.array("images", 10), // Max 10 images for updates
+  handleMulterError,
   updateBikeById
 );
-router.delete("del/:id", protect, authorize("Super-Admin"), deleteBikeById);
+
+router.delete("/del/:id", protect, authorize("Super-Admin"), deleteBikeById);
 
 export default router;

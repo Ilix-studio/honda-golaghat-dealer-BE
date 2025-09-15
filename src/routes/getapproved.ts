@@ -13,7 +13,7 @@ import {
   submitApplicationWithBike,
   getApplicationsWithBikes,
   updateBikeEnquiry,
-  getBikeRecommendations,
+  // getBikeRecommendations,
   getEnquiryStats,
 } from "../controllers/getapproved.controller";
 
@@ -82,8 +82,8 @@ router.put(
 router.get(
   "/:id/bike-recommendations",
   protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  getBikeRecommendations
+  authorize("Super-Admin", "Branch-Admin")
+  // getBikeRecommendations
 );
 
 // Super-Admin only routes

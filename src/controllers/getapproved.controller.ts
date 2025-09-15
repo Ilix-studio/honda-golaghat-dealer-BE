@@ -736,104 +736,104 @@ export const updateBikeEnquiry = asyncHandler(
  * @route   GET /api/getapproved/:id/bike-recommendations
  * @access  Private (Admin only)
  */
-export const getBikeRecommendations = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
+// export const getBikeRecommendations = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     const { id } = req.params;
 
-    let application;
+//     let application;
 
-    // Find application by MongoDB ID or application ID
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      application = await GetApproved.findById(id);
-    } else {
-      application = await GetApproved.findOne({ applicationId: id });
-    }
+//     // Find application by MongoDB ID or application ID
+//     if (mongoose.Types.ObjectId.isValid(id)) {
+//       application = await GetApproved.findById(id);
+//     } else {
+//       application = await GetApproved.findOne({ applicationId: id });
+//     }
 
-    if (!application) {
-      res.status(404);
-      throw new Error("Application not found");
-    }
+//     if (!application) {
+//       res.status(404);
+//       throw new Error("Application not found");
+//     }
 
-    // Build bike query based on application data
-    const bikeQuery: any = { inStock: true };
+//     // Build bike query based on application data
+//     const bikeQuery: any = { inStock: true };
 
-    // Filter by category if specified
-    if (application.bikeEnquiry?.category) {
-      bikeQuery.category = application.bikeEnquiry.category;
-    }
+//     // Filter by category if specified
+//     if (application.bikeEnquiry?.category) {
+//       bikeQuery.category = application.bikeEnquiry.category;
+//     }
 
-    // Filter by price range based on income and pre-approval
-    let maxPrice = application.monthlyIncome * 24; // Conservative estimate: 24x monthly income
-    if (application.preApprovalAmount) {
-      maxPrice = Math.min(maxPrice, application.preApprovalAmount);
-    }
-    if (application.bikeEnquiry?.priceRange) {
-      maxPrice = Math.min(maxPrice, application.bikeEnquiry.priceRange.max);
-      bikeQuery.price = {
-        $gte: application.bikeEnquiry.priceRange.min,
-        $lte: maxPrice,
-      };
-    } else {
-      bikeQuery.price = { $lte: maxPrice };
-    }
+//     // Filter by price range based on income and pre-approval
+//     let maxPrice = application.monthlyIncome * 24; // Conservative estimate: 24x monthly income
+//     if (application.preApprovalAmount) {
+//       maxPrice = Math.min(maxPrice, application.preApprovalAmount);
+//     }
+//     if (application.bikeEnquiry?.priceRange) {
+//       maxPrice = Math.min(maxPrice, application.bikeEnquiry.priceRange.max);
+//       bikeQuery.price = {
+//         $gte: application.bikeEnquiry.priceRange.min,
+//         $lte: maxPrice,
+//       };
+//     } else {
+//       bikeQuery.price = { $lte: maxPrice };
+//     }
 
-    // Filter by preferred features
-    if (
-      application.bikeEnquiry?.preferredFeatures &&
-      application.bikeEnquiry.preferredFeatures.length > 0
-    ) {
-      bikeQuery.features = { $in: application.bikeEnquiry.preferredFeatures };
-    }
+//     // Filter by preferred features
+//     if (
+//       application.bikeEnquiry?.preferredFeatures &&
+//       application.bikeEnquiry.preferredFeatures.length > 0
+//     ) {
+//       bikeQuery.features = { $in: application.bikeEnquiry.preferredFeatures };
+//     }
 
-    // Filter by branch if specified
-    if (application.branch) {
-      bikeQuery.branch = application.branch;
-    }
+//     // Filter by branch if specified
+//     if (application.branch) {
+//       bikeQuery.branch = application.branch;
+//     }
 
-    // Get recommended bikes
-    const recommendedBikes = await BikeModel.find(bikeQuery)
-      .populate("branch", "name address")
-      .limit(10)
-      .sort({ price: 1 }); // Sort by price ascending
+//     // Get recommended bikes
+//     const recommendedBikes = await BikeModel.find(bikeQuery)
+//       .populate("branch", "name address")
+//       .limit(10)
+//       .sort({ price: 1 }); // Sort by price ascending
 
-    // Calculate affordability scores
-    const bikesWithScores = recommendedBikes.map((bike) => {
-      const monthlyEMI = calculateEMI(bike.price, 8.5, 36); // Assuming 8.5% APR, 36 months
-      const affordabilityScore = (application.monthlyIncome * 0.4) / monthlyEMI; // 40% of income rule
+//     // Calculate affordability scores
+//     const bikesWithScores = recommendedBikes.map((bike) => {
+//       // const monthlyEMI = calculateEMI(bike.price, 8.5, 36); // Assuming 8.5% APR, 36 months
+//       const affordabilityScore = (application.monthlyIncome * 0.4) / monthlyEMI; // 40% of income rule
 
-      return {
-        ...bike.toObject(),
-        affordabilityScore: Math.min(affordabilityScore, 1),
-        estimatedEMI: monthlyEMI,
-        recommended: affordabilityScore >= 0.8, // Recommend if EMI is ≤ 80% of 40% income rule
-      };
-    });
+//       return {
+//         ...bike.toObject(),
+//         affordabilityScore: Math.min(affordabilityScore, 1),
+//         estimatedEMI: monthlyEMI,
+//         recommended: affordabilityScore >= 0.8, // Recommend if EMI is ≤ 80% of 40% income rule
+//       };
+//     });
 
-    res.status(200).json({
-      success: true,
-      data: {
-        application: {
-          applicationId: application.applicationId,
-          fullName: application.fullName,
-          monthlyIncome: application.monthlyIncome,
-          preApprovalAmount: application.preApprovalAmount,
-          enquiryType: application.enquiryType,
-          bikeEnquiry: application.bikeEnquiry,
-        },
-        recommendations: bikesWithScores.sort(
-          (a, b) => b.affordabilityScore - a.affordabilityScore
-        ),
-        maxRecommendedPrice: maxPrice,
-        criteriaUsed: {
-          category: application.bikeEnquiry?.category || "all",
-          priceRange: bikeQuery.price || { max: maxPrice },
-          preferredFeatures: application.bikeEnquiry?.preferredFeatures || [],
-          branch: application.branch || "all branches",
-        },
-      },
-    });
-  }
-);
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         application: {
+//           applicationId: application.applicationId,
+//           fullName: application.fullName,
+//           monthlyIncome: application.monthlyIncome,
+//           preApprovalAmount: application.preApprovalAmount,
+//           enquiryType: application.enquiryType,
+//           bikeEnquiry: application.bikeEnquiry,
+//         },
+//         recommendations: bikesWithScores.sort(
+//           (a, b) => b.affordabilityScore - a.affordabilityScore
+//         ),
+//         maxRecommendedPrice: maxPrice,
+//         criteriaUsed: {
+//           category: application.bikeEnquiry?.category || "all",
+//           priceRange: bikeQuery.price || { max: maxPrice },
+//           preferredFeatures: application.bikeEnquiry?.preferredFeatures || [],
+//           branch: application.branch || "all branches",
+//         },
+//       },
+//     });
+//   }
+// );
 
 /**
  * @desc    Get enquiry statistics

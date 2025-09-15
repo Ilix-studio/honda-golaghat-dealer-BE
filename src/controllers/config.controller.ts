@@ -2,7 +2,6 @@ import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import Bikes from "../models/Bikes";
 import Branch from "../models/Branch";
-import { modelNames } from "mongoose";
 
 /**
  * @desc    Get all bike categories
@@ -20,6 +19,7 @@ export const getCategories = asyncHandler(
       { id: "touring", name: "Touring" },
       { id: "naked", name: "Naked" },
       { id: "electric", name: "Electric" },
+      { id: "commuter", name: "Commuter" },
     ];
 
     res.status(200).json({
