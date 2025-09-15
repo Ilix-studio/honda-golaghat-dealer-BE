@@ -100,7 +100,15 @@ const BikeEnquirySchema = new Schema({
   },
   category: {
     type: String,
-    enum: ["sport", "adventure", "cruiser", "touring", "naked", "electric"],
+    enum: [
+      "sport",
+      "adventure",
+      "cruiser",
+      "touring",
+      "naked",
+      "electric",
+      "commuter",
+    ],
   },
   priceRange: {
     min: {

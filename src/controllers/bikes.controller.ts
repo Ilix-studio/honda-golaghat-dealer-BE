@@ -1,48 +1,104 @@
-import multer from "multer";
 import asyncHandler from "express-async-handler";
 import { v2 as cloudinary } from "cloudinary";
 import { Request, Response } from "express";
-import Bikes from "../models/Bikes";
-import mongoose from "mongoose";
-import {
-  deleteFromCloudinary,
-  uploadToCloudinary,
-} from "../utils/cloudinaryHelper";
+import BikeModel from "../models/Bikes";
 
-// Configure multer for memory storage
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept only image files
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(null, false);
-    }
-  },
+import { deleteFromCloudinary } from "../utils/cloudinaryHelper";
+
+/**
+ * @desc    Get all bikes with filtering and pagination
+ * @route   GET /api/bikes
+ * @access  Public
+ */
+export const getBikes = asyncHandler(async (req: Request, res: Response) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const category = req.query.category as string;
+  const year = req.query.year as string;
+  const minPrice = req.query.minPrice as string;
+  const maxPrice = req.query.maxPrice as string;
+  const inStock = req.query.inStock as string;
+
+  // Build filter query
+  let filter: any = { isActive: true };
+
+  if (category) filter.category = category;
+  if (year) filter.year = parseInt(year);
+  if (inStock === "true") filter.stockAvailable = { $gt: 0 };
+
+  // Price filtering (using on-road price)
+  if (minPrice || maxPrice) {
+    filter["priceBreakdown.onRoadPrice"] = {};
+    if (minPrice)
+      filter["priceBreakdown.onRoadPrice"].$gte = parseFloat(minPrice);
+    if (maxPrice)
+      filter["priceBreakdown.onRoadPrice"].$lte = parseFloat(maxPrice);
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [bikes, total] = await Promise.all([
+    BikeModel.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    BikeModel.countDocuments(filter),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      bikes,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total,
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
+    },
+  });
 });
 
-// Multer middleware for multiple files
-export const uploadImages = upload.array("images", 10); // Max 10 images
+/**
+ * @desc    Get single bike by ID
+ * @route   GET /api/bikes/:id
+ * @access  Public
+ */
+export const getBikeById = asyncHandler(async (req: Request, res: Response) => {
+  const bike = await BikeModel.findById(req.params.id);
 
+  if (!bike || !bike.isActive) {
+    res.status(404);
+    throw new Error("Bike not found");
+  }
+
+  res.status(200).json({
+    success: true,
+    data: bike,
+  });
+});
+
+/**
+ * @desc    Add new bike with multiple images
+ * @route   POST /api/bikes/add
+ * @access  Private/Super-Admin
+ */
 export const addBikes = asyncHandler(async (req: Request, res: Response) => {
   const {
     modelName,
     category,
     year,
-    price,
+    variants,
+    priceBreakdown,
     engineSize,
     power,
     transmission,
     features,
     colors,
-    inStock,
-    quantity,
-    branch,
+    stockAvailable,
+    isNewModel,
   } = req.body;
 
   // Validate required fields
@@ -50,16 +106,28 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     !modelName ||
     !category ||
     !year ||
-    !price ||
+    !priceBreakdown ||
     !engineSize ||
     !power ||
-    !transmission ||
-    !branch
+    !transmission
   ) {
     res.status(400).json({
       success: false,
-      error:
-        "Please provide all required fields: modelName, category, year, price, engineSize, power, transmission, branch",
+      error: "Please provide all required fields",
+    });
+  }
+
+  // Check for duplicate model name and year combination
+  const existingBike = await BikeModel.findOne({
+    modelName: modelName.trim(),
+    year: parseInt(year),
+    isActive: true,
+  });
+
+  if (existingBike) {
+    res.status(400).json({
+      success: false,
+      error: `Bike model "${modelName}" for year ${year} already exists`,
     });
     return;
   }
@@ -72,6 +140,7 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     "touring",
     "naked",
     "electric",
+    "commuter",
   ];
   if (!validCategories.includes(category)) {
     res.status(400).json({
@@ -81,606 +150,458 @@ export const addBikes = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  // Validate and clean numeric fields
-  let cleanYear: number;
-  let cleanPrice: number;
-  let cleanPower: number;
-  let cleanQuantity: number = 0;
+  // Validate price breakdown
+  if (
+    !priceBreakdown.exShowroomPrice ||
+    !priceBreakdown.rtoCharges ||
+    !priceBreakdown.insuranceComprehensive
+  ) {
+    res.status(400).json({
+      success: false,
+      error:
+        "Complete price breakdown is required (exShowroomPrice, rtoCharges, insuranceComprehensive)",
+    });
+    return;
+  }
+
+  // Check if files are uploaded
+  if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+    res.status(400).json({
+      success: false,
+      error: "At least one image is required",
+    });
+    return;
+  }
+
+  const files = req.files as Express.Multer.File[];
 
   try {
-    // Clean and validate year
-    cleanYear = parseInt(String(year));
-    if (
-      isNaN(cleanYear) ||
-      cleanYear < 1990 ||
-      cleanYear > new Date().getFullYear() + 2
-    ) {
-      res.status(400).json({
-        success: false,
-        error:
-          "Year must be a valid number between 1990 and " +
-          (new Date().getFullYear() + 2),
+    // Upload all images to Cloudinary
+    const uploadPromises = files.map((file, index) => {
+      return new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: "honda-golaghat-dealer/bikes",
+              resource_type: "image",
+              quality: "auto",
+              format: "jpg",
+              transformation: [
+                { width: 800, height: 600, crop: "fill" },
+                { quality: "auto" },
+              ],
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else
+                resolve({
+                  src: result!.secure_url,
+                  alt: `${modelName} - Image ${index + 1}`,
+                  cloudinaryPublicId: result!.public_id,
+                  isPrimary: index === 0, // First image is primary
+                });
+            }
+          )
+          .end(file.buffer);
       });
-      return;
-    }
+    });
 
-    // Clean and validate price
-    const priceStr = String(price).replace(/,/g, "");
-    cleanPrice = parseFloat(priceStr);
-    if (isNaN(cleanPrice) || cleanPrice <= 0) {
-      res.status(400).json({
-        success: false,
-        error: "Price must be a valid positive number",
-      });
-      return;
-    }
+    const uploadedImages = await Promise.all(uploadPromises);
 
-    // Clean and validate power
-    const powerStr = String(power).replace(/[^\d.]/g, "");
-    cleanPower = parseFloat(powerStr);
-    if (isNaN(cleanPower) || cleanPower <= 0) {
-      res.status(400).json({
-        success: false,
-        error: "Power must be a valid positive number",
-      });
-      return;
-    }
-
-    // Clean and validate quantity
-    if (quantity !== undefined && quantity !== null && quantity !== "") {
-      cleanQuantity = parseInt(String(quantity));
-      if (isNaN(cleanQuantity) || cleanQuantity < 0) {
+    // Parse variants if it's a string
+    let parsedVariants = variants;
+    if (typeof variants === "string") {
+      try {
+        parsedVariants = JSON.parse(variants);
+      } catch (error) {
         res.status(400).json({
           success: false,
-          error: "Quantity must be a valid non-negative number",
+          error: "Invalid variants format",
         });
         return;
       }
     }
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: "Invalid numeric values provided",
-    });
-    return;
-  }
 
-  // Validate branch ID
-  if (!mongoose.Types.ObjectId.isValid(branch)) {
-    res.status(400).json({
-      success: false,
-      error: `Invalid branch ID. Must be a valid 24-character MongoDB ObjectId. Received: "${branch}" (${
-        String(branch).length
-      } characters)`,
-    });
-    return;
-  }
-
-  // Validate boolean fields
-  let cleanInStock: boolean = true;
-  if (inStock !== undefined && inStock !== null && inStock !== "") {
-    if (typeof inStock === "string") {
-      cleanInStock = inStock.toLowerCase() === "true";
-    } else {
-      cleanInStock = Boolean(inStock);
+    // Parse features and colors if they're strings
+    let parsedFeatures = features;
+    if (typeof features === "string") {
+      try {
+        parsedFeatures = JSON.parse(features);
+      } catch (error) {
+        parsedFeatures = features.split(",").map((f: string) => f.trim());
+      }
     }
-  }
 
-  // Handle image uploads
-  let imageUrls: string[] = [];
-
-  try {
-    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-      console.log(`Uploading ${req.files.length} images to Cloudinary...`);
-
-      // Upload all images to Cloudinary
-      const uploadPromises = req.files.map((file) =>
-        uploadToCloudinary(file.buffer, file.originalname)
-      );
-
-      imageUrls = await Promise.all(uploadPromises);
-      console.log("Images uploaded successfully:", imageUrls);
+    let parsedColors = colors;
+    if (typeof colors === "string") {
+      try {
+        parsedColors = JSON.parse(colors);
+      } catch (error) {
+        parsedColors = colors.split(",").map((c: string) => c.trim());
+      }
     }
-  } catch (uploadError: any) {
-    console.error("Error uploading images:", uploadError);
-    res.status(500).json({
-      success: false,
-      error: "Failed to upload images to Cloudinary",
-      details: uploadError.message,
-    });
-    return;
-  }
 
-  try {
-    const newBike = await Bikes.create({
-      modelName: String(modelName).trim(),
+    // Create bike document
+    const bike = await BikeModel.create({
+      modelName: modelName.trim(),
       category,
-      year: cleanYear,
-      price: cleanPrice,
-      engineSize: String(engineSize).trim(),
-      power: cleanPower,
-      transmission: String(transmission).trim(),
-      features: Array.isArray(features) ? features : [],
-      colors: Array.isArray(colors) ? colors : [],
-      images: imageUrls, // Store Cloudinary URLs
-      inStock: cleanInStock,
-      quantity: cleanQuantity,
-      branch,
+      year: parseInt(year),
+
+      variants: parsedVariants || [
+        {
+          name: "Standard",
+          features: [],
+          priceAdjustment: 0,
+          isAvailable: true,
+        },
+      ],
+      priceBreakdown: {
+        exShowroomPrice: parseFloat(priceBreakdown.exShowroomPrice),
+        rtoCharges: parseFloat(priceBreakdown.rtoCharges),
+        insuranceComprehensive: parseFloat(
+          priceBreakdown.insuranceComprehensive
+        ),
+      },
+      engineSize: engineSize.trim(),
+      power: parseFloat(power),
+      transmission: transmission.trim(),
+      features: parsedFeatures || [],
+      colors: parsedColors || [],
+      images: uploadedImages,
+      stockAvailable: parseInt(stockAvailable) || 0,
+      isNewModel: isNewModel === "true" || isNewModel === true,
     });
 
     res.status(201).json({
       success: true,
-      data: newBike,
-      message: "Bike added successfully",
-      uploadedImages: imageUrls.length,
+      message: "Bike added successfully with images",
+      data: bike,
     });
   } catch (error: any) {
-    console.error("Error creating bike:", error);
-
-    // If bike creation fails but images were uploaded, we should clean up
-    if (imageUrls.length > 0) {
-      console.log("Cleaning up uploaded images due to database error...");
-      // Extract public_ids from URLs and delete from Cloudinary
-      const cleanupPromises = imageUrls.map(async (url) => {
-        try {
-          const publicId = url.split("/").pop()?.split(".")[0];
-          if (publicId) {
-            await cloudinary.uploader.destroy(
-              `honda-golaghat-dealer/bikes/${publicId}`
-            );
-          }
-        } catch (cleanupError) {
-          console.error("Error cleaning up image:", cleanupError);
-        }
-      });
-      await Promise.allSettled(cleanupPromises);
-    }
-
-    // Handle MongoDB validation errors
-    if (error.name === "ValidationError") {
-      const validationErrors = Object.values(error.errors).map(
-        (err: any) => err.message
-      );
-      res.status(400).json({
-        success: false,
-        error: "Validation failed",
-        details: validationErrors,
-      });
-      return;
-    }
-
-    // Handle duplicate key errors
+    // Handle duplicate key error from MongoDB
     if (error.code === 11000) {
       res.status(400).json({
         success: false,
-        error: "Duplicate entry detected",
+        error: "Bike model with this name and year already exists",
       });
       return;
     }
 
     res.status(500).json({
       success: false,
-      error: "Failed to create bike",
-      details: error.message,
+      error: error.message || "Failed to create bike",
     });
   }
 });
+
 /**
- * @desc    Get all bikes with optional filtering
- * @route   GET /api/bikes (with query parameters)
- * @route   POST /api/bikes/search (with request body)
- * @access  Public
+ * @desc    Update bike with optional new images
+ * @route   PUT /api/bikes/put/:id
+ * @access  Private/Super-Admin
  */
-export const getBikes = asyncHandler(async (req: Request, res: Response) => {
-  console.log("=== getBikes Debug Info ===");
-  console.log("Request method:", req.method);
-  console.log("Query params:", req.query);
-  console.log("Request body:", req.body);
-  console.log("=== End Debug Info ===");
+export const updateBikeById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const bike = await BikeModel.findById(req.params.id);
 
-  let params: any = {};
-
-  // For GET requests, use query parameters
-  if (req.method === "GET") {
-    params = req.query;
-  } else {
-    // For POST requests, use request body
-    params = req.body || {};
-  }
-
-  const {
-    category,
-    minPrice,
-    maxPrice,
-    inStock,
-    branch,
-    search,
-    sortBy,
-    limit = 10,
-    page = 1,
-  } = params;
-
-  // Build query
-  const query: any = {};
-
-  // Add filters if provided
-  if (category) {
-    query.category = category;
-  }
-
-  if (minPrice !== undefined || maxPrice !== undefined) {
-    query.price = {};
-    if (minPrice !== undefined) query.price.$gte = Number(minPrice);
-    if (maxPrice !== undefined) query.price.$lte = Number(maxPrice);
-  }
-
-  if (inStock !== undefined) {
-    // Handle string boolean values from query parameters
-    if (typeof inStock === "string") {
-      query.inStock = inStock.toLowerCase() === "true";
-    } else {
-      query.inStock = inStock;
+    if (!bike) {
+      res.status(404);
+      throw new Error("Bike not found");
     }
-  }
 
-  if (branch) {
-    if (!mongoose.Types.ObjectId.isValid(branch)) {
-      res.status(400).json({
-        success: false,
-        error: `Invalid branch ID: ${branch}`,
+    const {
+      modelName,
+      category,
+      year,
+      variants,
+      priceBreakdown,
+      engineSize,
+      power,
+      transmission,
+      features,
+      colors,
+      stockAvailable,
+      isNewModel,
+      isActive,
+      removeImages, // Array of cloudinary public IDs to remove
+    } = req.body;
+
+    try {
+      // Check for duplicate model name and year (excluding current bike)
+      if (modelName && year) {
+        const existingBike = await BikeModel.findOne({
+          _id: { $ne: req.params.id },
+          modelName: modelName.trim(),
+          year: parseInt(year),
+          isActive: true,
+        });
+
+        if (existingBike) {
+          res.status(400).json({
+            success: false,
+            error: `Bike model "${modelName}" for year ${year} already exists`,
+          });
+          return;
+        }
+      }
+
+      // Handle image removal if specified
+      if (removeImages && Array.isArray(removeImages)) {
+        for (const publicId of removeImages) {
+          // Remove from Cloudinary
+          await deleteFromCloudinary(
+            `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${publicId}.jpg`
+          );
+
+          // Remove from bike images array
+          bike.images = bike.images.filter(
+            (img) => img.cloudinaryPublicId !== publicId
+          );
+        }
+      }
+
+      // Handle new image uploads
+      let newImages: any[] = [];
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        const files = req.files as Express.Multer.File[];
+
+        const uploadPromises = files.map((file, index) => {
+          return new Promise((resolve, reject) => {
+            cloudinary.uploader
+              .upload_stream(
+                {
+                  folder: "honda-golaghat-dealer/bikes",
+                  resource_type: "image",
+                  quality: "auto",
+                  format: "jpg",
+                  transformation: [
+                    { width: 800, height: 600, crop: "fill" },
+                    { quality: "auto" },
+                  ],
+                },
+                (error, result) => {
+                  if (error) reject(error);
+                  else
+                    resolve({
+                      src: result!.secure_url,
+                      alt: `${bike.modelName} - Image ${
+                        bike.images.length + index + 1
+                      }`,
+                      cloudinaryPublicId: result!.public_id,
+                      isPrimary: bike.images.length === 0 && index === 0, // Primary only if no existing images
+                    });
+                }
+              )
+              .end(file.buffer);
+          });
+        });
+
+        newImages = await Promise.all(uploadPromises);
+        bike.images.push(...newImages);
+      }
+
+      // Update other fields
+      if (modelName !== undefined) bike.modelName = modelName.trim();
+      if (category !== undefined) bike.category = category;
+      if (year !== undefined) bike.year = parseInt(year);
+
+      if (variants !== undefined) {
+        bike.variants =
+          typeof variants === "string" ? JSON.parse(variants) : variants;
+      }
+      if (priceBreakdown !== undefined) {
+        bike.priceBreakdown = {
+          exShowroomPrice: parseFloat(priceBreakdown.exShowroomPrice),
+          rtoCharges: parseFloat(priceBreakdown.rtoCharges),
+          insuranceComprehensive: parseFloat(
+            priceBreakdown.insuranceComprehensive
+          ),
+        };
+      }
+      if (engineSize !== undefined) bike.engineSize = engineSize.trim();
+      if (power !== undefined) bike.power = parseFloat(power);
+      if (transmission !== undefined) bike.transmission = transmission.trim();
+      if (features !== undefined) {
+        bike.features =
+          typeof features === "string" ? JSON.parse(features) : features;
+      }
+      if (colors !== undefined) {
+        bike.colors = typeof colors === "string" ? JSON.parse(colors) : colors;
+      }
+      if (stockAvailable !== undefined)
+        bike.stockAvailable = parseInt(stockAvailable);
+      if (isNewModel !== undefined)
+        bike.isNewModel = isNewModel === "true" || isNewModel === true;
+      if (isActive !== undefined)
+        bike.isActive = isActive === "true" || isActive === true;
+
+      // Ensure at least one image exists
+      if (bike.images.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: "At least one image is required",
+        });
+        return;
+      }
+
+      const updatedBike = await bike.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Bike updated successfully",
+        data: updatedBike,
       });
-      return;
+    } catch (error: any) {
+      // Handle duplicate key error from MongoDB
+      if (error.code === 11000) {
+        res.status(400).json({
+          success: false,
+          error: "Bike model with this name and year already exists",
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to update bike",
+      });
     }
-    query.branch = branch;
   }
+);
 
-  // Add search functionality
-  if (search) {
-    query.$or = [
-      { modelName: { $regex: search, $options: "i" } },
-      { features: { $in: [new RegExp(search, "i")] } },
-    ];
-  }
+/**
+ * @desc    Delete bike by ID
+ * @route   DELETE /api/bikes/del/:id
+ * @access  Private/Super-Admin
+ */
+export const deleteBikeById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const bike = await BikeModel.findById(req.params.id);
 
-  // Calculate pagination
-  const skip = (Number(page) - 1) * Number(limit);
+    if (!bike) {
+      res.status(404);
+      throw new Error("Bike not found");
+    }
 
-  // Determine sort order
-  let sort = {};
-  switch (sortBy) {
-    case "price-low":
-      sort = { price: 1 };
-      break;
-    case "price-high":
-      sort = { price: -1 };
-      break;
-    case "newest":
-      sort = { year: -1 };
-      break;
-    case "engineSize-size":
-      sort = { engineSize: -1 };
-      break;
-    case "power":
-      sort = { power: -1 };
-      break;
-    default:
-      sort = { createdAt: -1 }; // Default to newest added
-  }
+    // Delete all images from Cloudinary
+    for (const image of bike.images) {
+      await deleteFromCloudinary(image.src);
+    }
 
-  try {
-    // Get total count for pagination
-    const total = await Bikes.countDocuments(query);
-
-    // Execute query with pagination and sorting
-    const bikes = await Bikes.find(query)
-      .sort(sort)
-      .limit(Number(limit))
-      .skip(skip)
-      .populate("branch", "name address");
+    // Delete bike from database
+    await BikeModel.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,
-      count: bikes.length,
-      total,
-      totalPages: Math.ceil(total / Number(limit)),
-      currentPage: Number(page),
-      data: bikes,
-    });
-  } catch (error: any) {
-    console.error("Error fetching bikes:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch bikes",
-      details: error.message,
+      message: "Bike deleted successfully",
     });
   }
-});
+);
 
 /**
- * @desc    Get a single bike by ID
- * @route   GET /api/bikes/:id
+ * @desc    Get bikes by category
+ * @route   GET /api/bikes/category/:category
  * @access  Public
  */
-export const getBikeById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+export const getBikesByCategory = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { category } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+    const validCategories = [
+      "sport",
+      "adventure",
+      "cruiser",
+      "touring",
+      "naked",
+      "electric",
+      "commuter",
+    ];
+    if (!validCategories.includes(category)) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid category",
+      });
+      return;
+    }
+
+    const [bikes, total] = await Promise.all([
+      BikeModel.find({ category, isActive: true })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      BikeModel.countDocuments({ category, isActive: true }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        bikes,
+        pagination: {
+          current: page,
+          pages: Math.ceil(total / limit),
+          total,
+          hasNext: page < Math.ceil(total / limit),
+          hasPrev: page > 1,
+        },
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Search bikes
+ * @route   GET /api/bikes/search
+ * @access  Public
+ */
+export const searchBikes = asyncHandler(async (req: Request, res: Response) => {
+  const { query } = req.query;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
+
+  if (!query) {
     res.status(400).json({
       success: false,
-      error: "Invalid bike ID",
+      error: "Search query is required",
     });
     return;
   }
 
-  try {
-    const bike = await Bikes.findById(id).populate("branch", "name address");
+  const searchRegex = new RegExp(query as string, "i");
+  const filter = {
+    isActive: true,
+    $or: [
+      { modelName: searchRegex },
+      { category: searchRegex },
 
-    if (!bike) {
-      res.status(404).json({
-        success: false,
-        error: "Bike not found",
-      });
-      return;
-    }
+      { features: { $in: [searchRegex] } },
+      { colors: { $in: [searchRegex] } },
+    ],
+  };
 
-    res.status(200).json({
-      success: true,
-      data: bike,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch bike",
-      details: error.message,
-    });
-  }
+  const [bikes, total] = await Promise.all([
+    BikeModel.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    BikeModel.countDocuments(filter),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      bikes,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total,
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
+    },
+  });
 });
-
-/**
- * @desc    Update a bike by ID
- * @route   PUT /api/bikes/:id
- * @access  Private
- */
-export const updateBikeById = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400).json({
-        success: false,
-        error: "Invalid bike ID",
-      });
-      return;
-    }
-
-    // Find existing bike first
-    const existingBike = await Bikes.findById(id);
-    if (!existingBike) {
-      res.status(404).json({
-        success: false,
-        error: "Bike not found",
-      });
-      return;
-    }
-
-    // Validate category if provided
-    if (updateData.category) {
-      const validCategories = [
-        "sport",
-        "adventure",
-        "cruiser",
-        "touring",
-        "naked",
-        "electric",
-      ];
-      if (!validCategories.includes(updateData.category)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid category",
-        });
-        return;
-      }
-    }
-
-    // Validate branch if provided
-    if (
-      updateData.branch &&
-      !mongoose.Types.ObjectId.isValid(updateData.branch)
-    ) {
-      res.status(400).json({
-        success: false,
-        error: "Invalid branch ID",
-      });
-      return;
-    }
-
-    // Handle image uploads
-    let newImageUrls: string[] = [];
-    let finalImageUrls: string[] = [...existingBike.images]; // Start with existing images
-
-    try {
-      // Upload new images if provided
-      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-        console.log(`Uploading ${req.files.length} new images...`);
-
-        const uploadPromises = req.files.map((file) =>
-          uploadToCloudinary(file.buffer, file.originalname)
-        );
-
-        newImageUrls = await Promise.all(uploadPromises);
-        console.log("New images uploaded successfully:", newImageUrls);
-
-        // Handle image replacement strategy
-        if (
-          updateData.replaceImages === "true" ||
-          updateData.replaceImages === true
-        ) {
-          // Replace all existing images with new ones
-          const oldImages = existingBike.images;
-          finalImageUrls = newImageUrls;
-
-          // Delete old images from Cloudinary
-          const deletePromises = oldImages.map(deleteFromCloudinary);
-          await Promise.allSettled(deletePromises);
-        } else {
-          // Append new images to existing ones
-          finalImageUrls = [...existingBike.images, ...newImageUrls];
-        }
-
-        // Update the images in updateData
-        updateData.images = finalImageUrls;
-      }
-
-      // Handle explicit image URLs in updateData (for manual URL updates)
-      if (
-        updateData.images &&
-        Array.isArray(updateData.images) &&
-        req.files?.length === 0
-      ) {
-        finalImageUrls = updateData.images;
-      }
-
-      // Clean numeric fields if provided
-      if (updateData.year) {
-        const cleanYear = parseInt(String(updateData.year));
-        if (
-          isNaN(cleanYear) ||
-          cleanYear < 1990 ||
-          cleanYear > new Date().getFullYear() + 2
-        ) {
-          res.status(400).json({
-            success: false,
-            error:
-              "Year must be a valid number between 1990 and " +
-              (new Date().getFullYear() + 2),
-          });
-          return;
-        }
-        updateData.year = cleanYear;
-      }
-
-      if (updateData.price) {
-        const priceStr = String(updateData.price).replace(/,/g, "");
-        const cleanPrice = parseFloat(priceStr);
-        if (isNaN(cleanPrice) || cleanPrice <= 0) {
-          res.status(400).json({
-            success: false,
-            error: "Price must be a valid positive number",
-          });
-          return;
-        }
-        updateData.price = cleanPrice;
-      }
-
-      if (updateData.power) {
-        const powerStr = String(updateData.power).replace(/[^\d.]/g, "");
-        const cleanPower = parseFloat(powerStr);
-        if (isNaN(cleanPower) || cleanPower <= 0) {
-          res.status(400).json({
-            success: false,
-            error: "Power must be a valid positive number",
-          });
-          return;
-        }
-        updateData.power = cleanPower;
-      }
-
-      if (updateData.quantity !== undefined) {
-        const cleanQuantity = parseInt(String(updateData.quantity));
-        if (isNaN(cleanQuantity) || cleanQuantity < 0) {
-          res.status(400).json({
-            success: false,
-            error: "Quantity must be a valid non-negative number",
-          });
-          return;
-        }
-        updateData.quantity = cleanQuantity;
-      }
-
-      // Handle boolean fields
-      if (updateData.inStock !== undefined) {
-        if (typeof updateData.inStock === "string") {
-          updateData.inStock = updateData.inStock.toLowerCase() === "true";
-        } else {
-          updateData.inStock = Boolean(updateData.inStock);
-        }
-      }
-
-      // Remove replaceImages flag from updateData before saving
-      delete updateData.replaceImages;
-
-      // Update the bike
-      const updatedBike = await Bikes.findByIdAndUpdate(
-        id,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      ).populate("branch", "name address");
-
-      res.status(200).json({
-        success: true,
-        data: updatedBike,
-        message: "Bike updated successfully",
-        uploadedImages: newImageUrls.length,
-        totalImages: finalImageUrls.length,
-      });
-    } catch (uploadError: any) {
-      console.error("Error uploading images:", uploadError);
-
-      // Clean up any uploaded images if bike update fails
-      if (newImageUrls.length > 0) {
-        const cleanupPromises = newImageUrls.map(deleteFromCloudinary);
-        await Promise.allSettled(cleanupPromises);
-      }
-
-      res.status(500).json({
-        success: false,
-        error: "Failed to upload images",
-        details: uploadError.message,
-      });
-      return;
-    }
-  }
-);
-
-/**
- * @desc    Delete a bike by ID
- * @route   DELETE /api/bikes/:id
- * @access  Private
- */
-export const deleteBikeById = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400).json({
-        success: false,
-        error: "Invalid bike ID",
-      });
-      return;
-    }
-
-    try {
-      const bike = await Bikes.findByIdAndDelete(id);
-
-      if (!bike) {
-        res.status(404).json({
-          success: false,
-          error: "Bike not found",
-        });
-        return;
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Bike deleted successfully",
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        error: "Failed to delete bike",
-        details: error.message,
-      });
-    }
-  }
-);
