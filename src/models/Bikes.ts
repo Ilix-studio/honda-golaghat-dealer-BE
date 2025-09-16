@@ -19,6 +19,7 @@ export interface IPriceBreakdown {
 // Enhanced Bikes Document interface
 export interface IBikesDocument extends Document {
   modelName: string;
+  mainCategory: "bike" | "scooter";
   category:
     | "sport"
     | "adventure"
@@ -26,7 +27,9 @@ export interface IBikesDocument extends Document {
     | "touring"
     | "naked"
     | "electric"
-    | "commuter";
+    | "commuter"
+    | "automatic"
+    | "gearless";
   year: number;
 
   // New variant system
@@ -39,6 +42,8 @@ export interface IBikesDocument extends Document {
   engineSize: string;
   power: number;
   transmission: string;
+  fuelNorms: "BS4" | "BS6" | "BS6 Phase 2" | "Electric";
+  isE20Efficiency: boolean;
 
   // Features and appearance
   features: string[];
@@ -63,6 +68,8 @@ export interface IBikesDocument extends Document {
     power?: string;
     transmission?: string;
     year?: number;
+    fuelNorms?: string;
+    isE20Efficiency?: boolean;
   };
 
   createdAt: Date;
@@ -132,23 +139,37 @@ const BikesSchema = new Schema<IBikesDocument>(
   {
     modelName: {
       type: String,
-      required: [true, "Please add bike model name"],
+      required: [true, "Please add vehicle model name"],
       trim: true,
       maxlength: [100, "Model name cannot exceed 100 characters"],
     },
 
+    mainCategory: {
+      type: String,
+      required: [true, "Please specify main category"],
+      enum: {
+        values: ["bike", "scooter"],
+        message: "Main category must be either bike or scooter",
+      },
+    },
+
     category: {
       type: String,
-      required: [true, "Please add bike category"],
-      enum: [
-        "sport",
-        "adventure",
-        "cruiser",
-        "touring",
-        "naked",
-        "electric",
-        "commuter",
-      ],
+      required: [true, "Please add vehicle category"],
+      enum: {
+        values: [
+          "sport",
+          "adventure",
+          "cruiser",
+          "touring",
+          "naked",
+          "electric",
+          "commuter",
+          "automatic",
+          "gearless",
+        ],
+        message: "Invalid category selected",
+      },
     },
 
     year: {
@@ -194,6 +215,22 @@ const BikesSchema = new Schema<IBikesDocument>(
       type: String,
       required: [true, "Please add transmission details"],
       trim: true,
+    },
+
+    fuelNorms: {
+      type: String,
+      required: [true, "Please specify fuel norms"],
+      enum: {
+        values: ["BS4", "BS6", "BS6 Phase 2", "Electric"],
+        message:
+          "Invalid fuel norm. Must be BS4, BS6, BS6 Phase 2, or Electric",
+      },
+    },
+
+    isE20Efficiency: {
+      type: Boolean,
+      default: false,
+      required: [true, "Please specify E20 efficiency compatibility"],
     },
 
     features: {
@@ -244,6 +281,8 @@ const BikesSchema = new Schema<IBikesDocument>(
       power: String,
       transmission: String,
       year: Number,
+      fuelNorms: String,
+      isE20Efficiency: Boolean,
     },
   },
   {
@@ -266,6 +305,8 @@ BikesSchema.pre("save", function (next) {
     power: `${this.power} HP`,
     transmission: this.transmission,
     year: this.year,
+    fuelNorms: this.fuelNorms,
+    isE20Efficiency: this.isE20Efficiency,
   };
 
   next();
@@ -292,9 +333,12 @@ BikesSchema.pre("save", function (next) {
 BikesSchema.index({ modelName: 1, year: 1 }, { unique: true });
 
 // Additional performance indexes
+BikesSchema.index({ mainCategory: 1 });
 BikesSchema.index({ category: 1 });
 BikesSchema.index({ year: -1 });
 BikesSchema.index({ isActive: 1 });
+BikesSchema.index({ fuelNorms: 1 });
+BikesSchema.index({ isE20Efficiency: 1 });
 BikesSchema.index({ "priceBreakdown.onRoadPrice": 1 });
 
 const BikeModel = mongoose.model<IBikesDocument>("Bikes", BikesSchema);

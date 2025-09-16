@@ -15,7 +15,7 @@ export const uploadBikeImageToCloudinary = (
 
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: "honda-golaghat-dealer/bikes",
+        folder: "honda-golaghat-dealer-bikes",
         public_id: publicId,
         transformation: [
           // Create multiple sizes for responsive images
