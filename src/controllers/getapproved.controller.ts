@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import GetApproved from "../models/GetApproved";
 import mongoose from "mongoose";
 import logger from "../utils/logger";
-import BikeModel from "../models/Bikes";
+import BikeModel from "../models/BikeSystemModel/Bikes";
 
 /**
  * @desc    Submit a new GetApproved application
