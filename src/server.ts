@@ -5,8 +5,9 @@ import connectDB from "./config/dbConnection";
 import { errorHandler, routeNotFound } from "./middleware/errorMiddleware";
 //Routes
 import auth from "./routes/auth";
-import bikes from "./routes/bikes";
-import scooty from "./routes/scooty";
+import bikes from "./routes/BikeSystemRoutes/bikes.routes";
+import bikeImages from "./routes/BikeSystemRoutes/bikeImages.routes";
+
 import branchRoutes from "./routes/branches";
 import staffRoutes from "./routes/staff";
 
@@ -70,11 +71,14 @@ app.listen(PORT, () => {
 app.use("/api", apiLimiter);
 
 app.use("/api/adminLogin", auth);
-app.use("/api/branch", branchRoutes);
-app.use("/api/bikes", bikes);
-app.use("/api/scooty", scooty);
-app.use("/api/staff", staffRoutes);
 app.use("/api/cloudinary", cloudinaryRoutes);
+app.use("/api/branch", branchRoutes);
+//new
+app.use("/api/bikes", bikes);
+app.use("/api/bike-images", bikeImages);
+
+app.use("/api/staff", staffRoutes);
+
 app.use("/api/config", configRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
 //update

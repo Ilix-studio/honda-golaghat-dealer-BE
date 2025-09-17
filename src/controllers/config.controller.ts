@@ -1,6 +1,6 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
-import Bikes from "../models/Bikes";
+import Bikes from "../models/BikeSystemModel/Bikes";
 import Branch from "../models/Branch";
 
 /**
