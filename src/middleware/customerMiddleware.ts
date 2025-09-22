@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import asyncHandler from "express-async-handler";
-import CustomerModel, {
-  ICustomer,
-} from "../models/CustomerSystem/CustomerModel";
+
 import ErrorResponse from "../utils/errorResponse";
 
 import admin from "firebase-admin";

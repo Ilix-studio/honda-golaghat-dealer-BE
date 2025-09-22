@@ -87,6 +87,7 @@ app.use("/api/visitor", visitorRoutes);
 //update
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
+
 app.use("/api/customer-vehicles", vehicleInfoRoutes);
 app.use("/api/customer-dashboard", customerDashboardRoutes);
 

@@ -3,10 +3,11 @@ import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import CustomerDashModel from "../../models/CustomerSystem/CustomerDashModel";
 import mongoose from "mongoose";
-import CustomerModel from "../../models/CustomerSystem/CustomerModel";
+
 import logger from "../../utils/logger";
 import CustomerActiveServiceModel from "../../models/CustomerSystem/CustomerActiveServices";
 import ValueAddedServiceModel from "../../models/CustomerSystem/VASmodel";
+import CustomerModel from "../../models/CustomerSystem/CustomerModel";
 
 /**
  * @desc    Create vehicle (Admin only)

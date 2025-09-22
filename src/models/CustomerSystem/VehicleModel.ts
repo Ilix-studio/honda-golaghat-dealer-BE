@@ -2,19 +2,14 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export interface ICustomerVehicle extends Document {
   _id: string;
-  // Vehicle Details
-  category: "bike" | "scooty";
   modelName: string;
-  year: number;
   registrationDate?: Date;
   engineNumber: string;
   chassisNumber: string;
   fitnessUpto: number;
   insurance: boolean;
-  fuelNorms: "BSIV" | "BSVI";
   isPaid: boolean;
   isFinance: boolean;
-  engineCapacity?: string;
   uniqueBookRecord?: string;
   color?: string;
   purchaseDate?: Date;
@@ -53,22 +48,12 @@ export interface ICustomerVehicle extends Document {
 const CustomerVehicleSchema = new Schema<ICustomerVehicle>(
   {
     // Vehicle Basic Information
-    category: {
-      type: String,
-      required: [true, "Vehicle category is required"],
-      enum: ["bike", "scooty"],
-    },
+
     modelName: {
       type: String,
       required: [true, "Model name is required"],
       trim: true,
       maxlength: [100, "Model name cannot exceed 100 characters"],
-    },
-    year: {
-      type: Number,
-      required: [true, "Manufacturing year is required"],
-      min: [2000, "Year must be 2000 or later"],
-      max: [new Date().getFullYear() + 1, "Year cannot be in future"],
     },
     registrationDate: {
       type: Date,
@@ -101,6 +86,7 @@ const CustomerVehicleSchema = new Schema<ICustomerVehicle>(
       type: String,
       sparse: true,
       trim: true,
+      unique: true,
       uppercase: true,
       match: [
         /^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/,
@@ -120,11 +106,6 @@ const CustomerVehicleSchema = new Schema<ICustomerVehicle>(
       required: [true, "Insurance status is required"],
       default: false,
     },
-    fuelNorms: {
-      type: String,
-      required: [true, "Fuel norms are required"],
-      enum: ["BSIV", "BSVI"],
-    },
 
     // Financial Information
     isPaid: {
@@ -136,12 +117,6 @@ const CustomerVehicleSchema = new Schema<ICustomerVehicle>(
       default: false,
     },
 
-    // Additional Details
-    engineCapacity: {
-      type: String,
-      trim: true,
-      match: [/^\d+cc$/, "Engine capacity must be in format: 150cc"],
-    },
     uniqueBookRecord: {
       type: String,
       trim: true,
@@ -265,11 +240,6 @@ CustomerVehicleSchema.pre("save", function (next) {
   }
 
   next();
-});
-
-// Virtual for vehicle age
-CustomerVehicleSchema.virtual("vehicleAge").get(function () {
-  return new Date().getFullYear() - this.year;
 });
 
 // Methods

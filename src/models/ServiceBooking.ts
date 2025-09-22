@@ -1,6 +1,5 @@
 import mongoose, { Schema } from "mongoose";
 import { IServiceBooking } from "../types/serviceBooking.types";
-import { ref } from "process";
 
 // Sub-schema for customer name
 const CustomerNameSchema = new Schema({
