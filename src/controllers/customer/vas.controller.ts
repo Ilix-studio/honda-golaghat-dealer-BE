@@ -2,7 +2,10 @@ import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import ValueAddedServiceModel from "../../models/CustomerSystem/VASmodel";
 import logger from "../../utils/logger";
-import CustomerDashModel from "../../models/CustomerSystem/CustomerDashModel";
+import {
+  CustomerVehicleModel,
+  ICustomerVehicle,
+} from "../../models/CustomerSystem/CustomerVehicleModel";
 
 /**
  * @desc    Create value added service
@@ -144,7 +147,7 @@ export const getCustomerEligibleServices = asyncHandler(
   async (req: Request, res: Response) => {
     const customerId = req.customer?._id;
 
-    const vehicles = await CustomerDashModel.find({
+    const vehicles = await CustomerVehicleModel.find({
       customer: customerId,
       isActive: true,
     });
@@ -154,14 +157,15 @@ export const getCustomerEligibleServices = asyncHandler(
         success: false,
         message: "No vehicles found",
       });
+      return;
     }
 
     const eligibleServices = await Promise.all(
-      vehicles.map(async (vehicle) => {
+      vehicles.map(async (vehicle: ICustomerVehicle) => {
         // Get vehicle age in months
         const vehicleAgeMonths = Math.floor(
           (new Date().getTime() -
-            new Date(vehicle.registrationDate).getTime()) /
+            new Date(vehicle.registrationDate || vehicle.createdAt).getTime()) /
             (1000 * 60 * 60 * 24 * 30)
         );
 
@@ -180,7 +184,7 @@ export const getCustomerEligibleServices = asyncHandler(
         return {
           vehicle: {
             _id: vehicle._id,
-            motorcyclemodelName: vehicle.motorcyclemodelName,
+            modelName: vehicle.modelName,
             numberPlate: vehicle.numberPlate,
             registrationDate: vehicle.registrationDate,
             ageMonths: vehicleAgeMonths,
@@ -247,7 +251,7 @@ export const calculateServicePrice = asyncHandler(
     const { serviceId, vehicleId, selectedYears } = req.body;
 
     const service = await ValueAddedServiceModel.findById(serviceId);
-    const vehicle = await CustomerDashModel.findById(vehicleId);
+    const vehicle = await CustomerVehicleModel.findById(vehicleId);
 
     if (!service || !vehicle) {
       res.status(404);
@@ -322,7 +326,7 @@ export const activateCustomerService = asyncHandler(
       throw new Error("Service not found");
     }
 
-    const vehicle = await CustomerDashModel.findOne({
+    const vehicle = await CustomerVehicleModel.findOne({
       _id: vehicleId,
       customer: customerId,
     });
@@ -335,7 +339,7 @@ export const activateCustomerService = asyncHandler(
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
 
-    // For now, we'll add this info to a separate collection or extend CustomerDashModel
+    // For now, we'll add this info to a separate collection or extend CustomerVehicleModel
     // This is a simplified implementation - you'd want a proper CustomerActiveServices model
 
     logger.info(
@@ -365,42 +369,28 @@ export const getCustomerActiveServices = asyncHandler(
   async (req: Request, res: Response) => {
     const customerId = req.customer?._id;
 
-    const vehicles = await CustomerDashModel.find({
+    const vehicles = await CustomerVehicleModel.find({
       customer: customerId,
       isActive: true,
     });
 
-    // Mock active services - in production, you'd query CustomerActiveServices model
-    const activeServices = vehicles.map((vehicle) => ({
+    // Use the activeValueAddedServices array from the vehicle model
+    const activeServices = vehicles.map((vehicle: ICustomerVehicle) => ({
       vehicle: {
         _id: vehicle._id,
-        motorcyclemodelName: vehicle.motorcyclemodelName,
+        modelName: vehicle.modelName,
         numberPlate: vehicle.numberPlate,
       },
-      services: [
-        // Mock data - replace with actual query
-        {
-          serviceName: "Extended Warranty Plus",
-          activationDate: new Date("2024-01-15"),
-          expiryDate: new Date("2034-01-15"),
-          badges: [
-            {
-              name: "Premium Warranty",
-              description: "10 Years Comprehensive Coverage",
-              icon: "star",
-              color: "#F59E0B",
-              isActive: true,
-            },
-            {
-              name: "Unlimited KMs",
-              description: "No Mileage Restrictions",
-              icon: "infinity",
-              color: "#8B5CF6",
-              isActive: true,
-            },
-          ],
-        },
-      ],
+      services: vehicle.activeValueAddedServices
+        .filter((service) => service.isActive)
+        .map((service) => ({
+          serviceId: service.serviceId,
+          activatedDate: service.activatedDate,
+          expiryDate: service.expiryDate,
+          purchasePrice: service.purchasePrice,
+          coverageYears: service.coverageYears,
+          activeBadges: service.activeBadges,
+        })),
     }));
 
     res.status(200).json({

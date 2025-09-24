@@ -1,6 +1,6 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
-import ServiceBooking from "../models/ServiceBooking";
+
 import Branch from "../models/Branch";
 import mongoose from "mongoose";
 import logger from "../utils/logger";
@@ -11,6 +11,7 @@ import {
   getUserBranch,
   canAccessBranch,
 } from "../types/user.types";
+import { ServiceBooking } from "../models/CustomerSystem/ServiceBooking";
 
 /**
  * @desc    Create a new service booking
@@ -377,12 +378,6 @@ export const cancelServiceBooking = asyncHandler(
     if (!booking) {
       res.status(404);
       throw new Error("Service booking not found");
-    }
-
-    // If not admin request, verify email matches
-    if (!req.user && email !== booking.contactInfo.email) {
-      res.status(403);
-      throw new Error("Unauthorized to cancel this booking");
     }
 
     // For Branch Managers, check if they can access this booking

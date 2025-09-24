@@ -16,7 +16,7 @@ const router = express.Router();
 
 // ===== CUSTOMER ROUTES (Customer authentication required) =====
 router.post("/create", protectCustomer, createProfile);
-router.get("/get", protectCustomer, getCustomerProfile);
+router.get("/get", protectCustomer, getCustomerProfile); // For dashboard
 router.patch("/update", protectCustomer, updateCustomerProfile); //UpdateRequest
 
 // Customer can access their own data
@@ -29,5 +29,6 @@ router.get(
   authorize("Super-Admin", "Branch-Admin"),
   getAllCustomers
 );
+router.delete("/:customerId", protect, authorize("Super-Admin"));
 
 export default router;

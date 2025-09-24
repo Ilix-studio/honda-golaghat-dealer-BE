@@ -1,10 +1,10 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
-
-import CustomerModel from "../../models/CustomerSystem/CustomerModel";
 import mongoose from "mongoose";
 import logger from "../../utils/logger";
-import CustomerVehicleModel from "../../models/CustomerSystem/VehicleModel";
+// Fixed import
+import { BaseCustomerModel } from "../../models/CustomerSystem/BaseCustomer/BaseCustomer";
+import { CustomerVehicleModel } from "../../models/CustomerSystem/CustomerVehicleModel";
 
 /**
  * @desc    Get all customer vehicles (Admin)
@@ -17,17 +17,16 @@ export const getAllCustomerVehicles = asyncHandler(
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    // Build filter
+    // Build filter based on CustomerVehicle model structure
     const filter: any = { isActive: true };
-    if (req.query.category) filter.category = req.query.category;
-    if (req.query.year) filter.year = req.query.year;
-    if (req.query.fuelNorms) filter.fuelNorms = req.query.fuelNorms;
     if (req.query.serviceType) {
       filter["serviceStatus.serviceType"] = req.query.serviceType;
     }
 
     const vehicles = await CustomerVehicleModel.find(filter)
-      .populate("customer", "firstName lastName phoneNumber email")
+      .populate("customer", "phoneNumber")
+      .populate("servicePackage.packageId")
+      .populate("activeValueAddedServices.serviceId")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -57,7 +56,10 @@ export const getMyVehicles = asyncHandler(
     const vehicles = await CustomerVehicleModel.find({
       customer: customerId,
       isActive: true,
-    }).sort({ createdAt: -1 });
+    })
+      .populate("servicePackage.packageId")
+      .populate("activeValueAddedServices.serviceId")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -81,10 +83,10 @@ export const getVehicleById = asyncHandler(
       throw new Error("Invalid vehicle ID");
     }
 
-    const vehicle = await CustomerVehicleModel.findById(id).populate(
-      "customer",
-      "firstName lastName phoneNumber email"
-    );
+    const vehicle = await CustomerVehicleModel.findById(id)
+      .populate("customer", "phoneNumber")
+      .populate("servicePackage.packageId")
+      .populate("activeValueAddedServices.serviceId");
 
     if (!vehicle) {
       res.status(404);
@@ -108,26 +110,17 @@ export const getVehicleById = asyncHandler(
 );
 
 /**
- * @desc    Create new vehicle
- * @route   POST /api/customer-vehicles
+ * @desc    Create new vehicle from stock
+ * @route   POST /api/customer-vehicles/create-from-stock
  * @access  Private (Admin)
  */
-export const createVehicle = asyncHandler(
+export const createVehicleFromStock = asyncHandler(
   async (req: Request, res: Response) => {
     const {
-      category,
-      modelName,
-      year,
       registrationDate,
-      engineNumber,
-      chassisNumber,
-      fitnessUpto,
       insurance,
-      fuelNorms,
       isPaid,
       isFinance,
-      engineCapacity,
-      uniqueBookRecord,
       color,
       purchaseDate,
       customer,
@@ -135,73 +128,69 @@ export const createVehicle = asyncHandler(
       registeredOwnerName,
       motorcyclePhoto,
       rtoInfo,
+      servicePackageId,
+      stockId,
     } = req.body;
 
     // Validate customer exists
-    const customerExists = await CustomerModel.findById(customer);
+    const customerExists = await BaseCustomerModel.findById(customer);
     if (!customerExists) {
       res.status(404);
       throw new Error("Customer not found");
     }
 
-    // Check for duplicates
-    const existingVehicle = await CustomerVehicleModel.findOne({
-      $or: [
-        { engineNumber: engineNumber.toUpperCase() },
-        { chassisNumber: chassisNumber.toUpperCase() },
-        ...(numberPlate ? [{ numberPlate: numberPlate.toUpperCase() }] : []),
-      ],
-    });
+    // Check for duplicates using numberPlate if provided
+    if (numberPlate) {
+      const existingVehicle = await CustomerVehicleModel.findOne({
+        numberPlate: numberPlate.toUpperCase(),
+      });
 
-    if (existingVehicle) {
-      res.status(400);
-      throw new Error(
-        "Vehicle with this engine number, chassis number, or number plate already exists"
-      );
+      if (existingVehicle) {
+        res.status(400);
+        throw new Error("Vehicle with this number plate already exists");
+      }
     }
 
     const vehicle = await CustomerVehicleModel.create({
-      category,
-      modelName,
-      year,
       registrationDate,
-      engineNumber: engineNumber.toUpperCase(),
-      chassisNumber: chassisNumber.toUpperCase(),
-      fitnessUpto,
       insurance,
-      fuelNorms,
       isPaid,
       isFinance,
-      engineCapacity,
-      uniqueBookRecord,
       color,
       purchaseDate,
       customer,
       numberPlate: numberPlate?.toUpperCase(),
-      registeredOwnerName:
-        registeredOwnerName ||
-        `${customerExists.firstName} ${customerExists.lastName}`,
+      registeredOwnerName,
       motorcyclePhoto,
       rtoInfo: rtoInfo
         ? {
-            rtoCode: rtoInfo.rtoCode.toUpperCase(),
+            rtoCode: rtoInfo.rtoCode?.toUpperCase(),
             rtoName: rtoInfo.rtoName,
             rtoAddress: rtoInfo.rtoAddress,
-            state: rtoInfo.state.toUpperCase(),
+            state: rtoInfo.state?.toUpperCase(),
           }
         : undefined,
+      servicePackage: {
+        packageId: new mongoose.Types.ObjectId(servicePackageId),
+        currentServiceLevel: 1,
+        nextServiceType: "firstService",
+        completedServices: [],
+      },
       serviceStatus: {
         serviceType: "Regular",
         kilometers: 0,
         serviceHistory: 0,
       },
+      activeValueAddedServices: [],
+      isActive: true,
     });
 
-    await vehicle.populate("customer", "firstName lastName phoneNumber");
+    await vehicle.populate([
+      { path: "customer", select: "phoneNumber" },
+      { path: "servicePackage.packageId" },
+    ]);
 
-    logger.info(
-      `Vehicle created: ${vehicle.engineNumber} for customer ${customerExists.phoneNumber}`
-    );
+    logger.info(`Vehicle created for customer ${customerExists.phoneNumber}`);
 
     res.status(201).json({
       success: true,
@@ -231,50 +220,32 @@ export const updateVehicle = asyncHandler(
       throw new Error("Vehicle not found");
     }
 
-    // Check for duplicates if updating unique fields
-    const {
-      engineNumber,
-      chassisNumber,
-      numberPlate,
-      rtoInfo,
-      ...otherUpdates
-    } = req.body;
+    // Check for duplicates if updating numberPlate
+    const { numberPlate, rtoInfo, ...otherUpdates } = req.body;
 
-    if (engineNumber || chassisNumber || numberPlate) {
-      const duplicateFilter: any = { _id: { $ne: id }, $or: [] };
+    if (numberPlate && numberPlate !== vehicle.numberPlate) {
+      const duplicate = await CustomerVehicleModel.findOne({
+        _id: { $ne: id },
+        numberPlate: numberPlate.toUpperCase(),
+      });
 
-      if (engineNumber && engineNumber !== vehicle.engineNumber) {
-        duplicateFilter.$or.push({ engineNumber: engineNumber.toUpperCase() });
-      }
-      if (chassisNumber && chassisNumber !== vehicle.chassisNumber) {
-        duplicateFilter.$or.push({
-          chassisNumber: chassisNumber.toUpperCase(),
-        });
-      }
-      if (numberPlate && numberPlate !== vehicle.numberPlate) {
-        duplicateFilter.$or.push({ numberPlate: numberPlate.toUpperCase() });
-      }
-
-      if (duplicateFilter.$or.length > 0) {
-        const duplicate = await CustomerVehicleModel.findOne(duplicateFilter);
-        if (duplicate) {
-          res.status(400);
-          throw new Error("Another vehicle with these details already exists");
-        }
+      if (duplicate) {
+        res.status(400);
+        throw new Error(
+          "Another vehicle with this number plate already exists"
+        );
       }
     }
 
     // Prepare update data
     const updateData: any = { ...otherUpdates };
-    if (engineNumber) updateData.engineNumber = engineNumber.toUpperCase();
-    if (chassisNumber) updateData.chassisNumber = chassisNumber.toUpperCase();
     if (numberPlate) updateData.numberPlate = numberPlate.toUpperCase();
     if (rtoInfo) {
       updateData.rtoInfo = {
-        rtoCode: rtoInfo.rtoCode.toUpperCase(),
+        rtoCode: rtoInfo.rtoCode?.toUpperCase(),
         rtoName: rtoInfo.rtoName,
         rtoAddress: rtoInfo.rtoAddress,
-        state: rtoInfo.state.toUpperCase(),
+        state: rtoInfo.state?.toUpperCase(),
       };
     }
 
@@ -282,9 +253,9 @@ export const updateVehicle = asyncHandler(
       id,
       updateData,
       { new: true, runValidators: true }
-    ).populate("customer", "firstName lastName phoneNumber");
+    ).populate("customer", "phoneNumber");
 
-    logger.info(`Vehicle updated: ${updatedVehicle?.engineNumber} by admin`);
+    logger.info(`Vehicle updated by admin`);
 
     res.status(200).json({
       success: true,
@@ -308,7 +279,6 @@ export const deleteVehicle = asyncHandler(
       throw new Error("Invalid vehicle ID");
     }
 
-    // Soft delete
     const vehicle = await CustomerVehicleModel.findByIdAndUpdate(
       id,
       { isActive: false },
@@ -320,7 +290,7 @@ export const deleteVehicle = asyncHandler(
       throw new Error("Vehicle not found");
     }
 
-    logger.info(`Vehicle soft deleted: ${vehicle.engineNumber}`);
+    logger.info(`Vehicle soft deleted`);
 
     res.status(200).json({
       success: true,
@@ -352,26 +322,23 @@ export const updateServiceStatus = asyncHandler(
     }
 
     // Update service status
-    const serviceUpdate: any = {};
     if (lastServiceDate)
-      serviceUpdate["serviceStatus.lastServiceDate"] = lastServiceDate;
-    if (nextServiceDue)
-      serviceUpdate["serviceStatus.nextServiceDue"] = nextServiceDue;
-    if (serviceType) serviceUpdate["serviceStatus.serviceType"] = serviceType;
-    if (kilometers !== undefined) {
-      serviceUpdate["serviceStatus.kilometers"] = kilometers;
-    }
+      vehicle.serviceStatus.lastServiceDate = lastServiceDate;
+    if (nextServiceDue) vehicle.serviceStatus.nextServiceDue = nextServiceDue;
+    if (serviceType) vehicle.serviceStatus.serviceType = serviceType;
+    if (kilometers !== undefined) vehicle.serviceStatus.kilometers = kilometers;
 
     // Increment service history if last service date is updated
     if (lastServiceDate) {
-      serviceUpdate["$inc"] = { "serviceStatus.serviceHistory": 1 };
+      vehicle.serviceStatus.serviceHistory += 1;
     }
 
-    const updatedVehicle = await CustomerVehicleModel.findByIdAndUpdate(
-      id,
-      serviceUpdate,
-      { new: true }
-    ).populate("customer", "firstName lastName phoneNumber");
+    await vehicle.save();
+
+    const updatedVehicle = await CustomerVehicleModel.findById(id).populate(
+      "customer",
+      "phoneNumber"
+    );
 
     res.status(200).json({
       success: true,
@@ -405,7 +372,7 @@ export const getServiceDueVehicles = asyncHandler(
         },
       ],
     })
-      .populate("customer", "firstName lastName phoneNumber")
+      .populate("customer", "phoneNumber")
       .sort({ "serviceStatus.nextServiceDue": 1 });
 
     res.status(200).json({
@@ -427,56 +394,103 @@ export const getVehicleStats = asyncHandler(
       isActive: true,
     });
 
-    const categoryStats = await CustomerVehicleModel.aggregate([
-      { $match: { isActive: true } },
-      { $group: { _id: "$category", count: { $sum: 1 } } },
-    ]);
-
-    const fuelNormsStats = await CustomerVehicleModel.aggregate([
-      { $match: { isActive: true } },
-      { $group: { _id: "$fuelNorms", count: { $sum: 1 } } },
-    ]);
-
     const serviceStats = await CustomerVehicleModel.aggregate([
       { $match: { isActive: true } },
       { $group: { _id: "$serviceStatus.serviceType", count: { $sum: 1 } } },
     ]);
-
-    const currentYear = new Date().getFullYear();
-    const fitnessExpired = await CustomerVehicleModel.countDocuments({
-      isActive: true,
-      fitnessUpto: { $lt: currentYear },
-    });
 
     const insuranceStats = await CustomerVehicleModel.aggregate([
       { $match: { isActive: true } },
       { $group: { _id: "$insurance", count: { $sum: 1 } } },
     ]);
 
+    const paymentStats = await CustomerVehicleModel.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: { isPaid: "$isPaid", isFinance: "$isFinance" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
     res.status(200).json({
       success: true,
       data: {
         totalVehicles,
-        categoryStats: categoryStats.reduce(
-          (acc, curr) => ({ ...acc, [curr._id]: curr.count }),
-          {}
-        ),
-        fuelNormsStats: fuelNormsStats.reduce(
-          (acc, curr) => ({ ...acc, [curr._id]: curr.count }),
-          {}
-        ),
         serviceStats: serviceStats.reduce(
-          (acc, curr) => ({ ...acc, [curr._id]: curr.count }),
+          (acc: Record<string, number>, curr) => ({
+            ...acc,
+            [curr._id]: curr.count,
+          }),
           {}
         ),
-        fitnessExpiredCount: fitnessExpired,
         insuranceStats: insuranceStats.reduce(
-          (acc, curr) => ({
+          (acc: Record<string, number>, curr) => ({
             ...acc,
             [curr._id ? "insured" : "notInsured"]: curr.count,
           }),
           {}
         ),
+        paymentStats: paymentStats.reduce(
+          (acc: Record<string, number>, curr) => ({
+            ...acc,
+            [`paid_${curr._id.isPaid}_finance_${curr._id.isFinance}`]:
+              curr.count,
+          }),
+          {}
+        ),
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Add VAS to vehicle
+ * @route   POST /api/customer-vehicles/:id/add-vas
+ * @access  Private (Admin)
+ */
+export const addVASToVehicle = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { serviceId, purchasePrice, coverageYears, selectedBadges } =
+      req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400);
+      throw new Error("Invalid vehicle ID");
+    }
+
+    const vehicle = await CustomerVehicleModel.findById(id);
+    if (!vehicle) {
+      res.status(404);
+      throw new Error("Vehicle not found");
+    }
+
+    const expiryDate = new Date();
+    expiryDate.setFullYear(expiryDate.getFullYear() + coverageYears);
+
+    vehicle.activeValueAddedServices.push({
+      serviceId: new mongoose.Types.ObjectId(serviceId),
+      activatedDate: new Date(),
+      expiryDate,
+      activatedBy: new mongoose.Types.ObjectId(),
+      purchasePrice,
+      coverageYears,
+      isActive: true,
+      activeBadges: selectedBadges || [],
+    });
+
+    await vehicle.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Value added service activated successfully",
+      data: {
+        vehicleId: vehicle._id,
+        activeServicesCount: vehicle.activeValueAddedServices.filter(
+          (s) => s.isActive
+        ).length,
       },
     });
   }
@@ -500,7 +514,7 @@ export const transferVehicle = asyncHandler(
       throw new Error("Invalid vehicle or customer ID");
     }
 
-    const newCustomer = await CustomerModel.findById(newCustomerId);
+    const newCustomer = await BaseCustomerModel.findById(newCustomerId);
     if (!newCustomer) {
       res.status(404);
       throw new Error("New customer not found");
@@ -510,20 +524,17 @@ export const transferVehicle = asyncHandler(
       id,
       {
         customer: newCustomerId,
-        registeredOwnerName:
-          newOwnerName || `${newCustomer.firstName} ${newCustomer.lastName}`,
+        registeredOwnerName: newOwnerName || undefined,
       },
       { new: true }
-    ).populate("customer", "firstName lastName phoneNumber");
+    ).populate("customer", "phoneNumber");
 
     if (!vehicle) {
       res.status(404);
       throw new Error("Vehicle not found");
     }
 
-    logger.info(
-      `Vehicle ${vehicle.engineNumber} transferred to ${newCustomer.phoneNumber}`
-    );
+    logger.info(`Vehicle transferred to ${newCustomer.phoneNumber}`);
 
     res.status(200).json({
       success: true,

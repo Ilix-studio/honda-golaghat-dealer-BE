@@ -17,7 +17,7 @@ import getApprovedRoutes from "./routes/getapproved";
 //new
 import customerRoutes from "./routes/customer/customer";
 import customerProfile from "./routes/customer/customerProfile";
-import customerDashboardRoutes from "./routes/customer/customerDashboard";
+
 import serviceBookingRoutes from "./routes/serviceBooking";
 import servicePackageRoutes from "./routes/customer/servicePackage";
 import valueAddedServicesRoutes from "./routes/customer/VAS";
@@ -81,18 +81,19 @@ app.use("/api/staff", staffRoutes);
 
 app.use("/api/config", configRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
-//update
-app.use("/api/service-packages", servicePackageRoutes);
-app.use("/api/visitor", visitorRoutes);
+
 //update
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
-
+//update
 app.use("/api/customer-vehicles", vehicleInfoRoutes);
-app.use("/api/customer-dashboard", customerDashboardRoutes);
 
+//update
 app.use("/api/value-added-services", valueAddedServicesRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
+//update
+app.use("/api/service-packages", servicePackageRoutes);
+app.use("/api/visitor", visitorRoutes);
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

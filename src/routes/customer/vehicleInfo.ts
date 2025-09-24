@@ -9,38 +9,32 @@ import {
   getAllCustomerVehicles,
   getMyVehicles,
   getVehicleById,
-  createVehicle,
-  updateVehicle,
   deleteVehicle,
   updateServiceStatus,
   getServiceDueVehicles,
   transferVehicle,
+  createVehicleFromStock,
+  updateVehicle,
 } from "../../controllers/customer/vehicle.controller";
 
 const router = express.Router();
-// Base route: /api/customer-vehicles
 
-// ===== PUBLIC ROUTES =====
-
-// ===== CUSTOMER ROUTES (Firebase auth required) =====
-router.get("/my-vehicles", protectCustomer, getMyVehicles);
-router.get("/:id", protectAdminOrCustomer, getVehicleById);
-
-// ===== ADMIN ROUTES (JWT auth required) =====
+router.get("/my-vehicles", protectCustomer, getMyVehicles); // Customer-Dashboard
+router.get("/:id", protectAdminOrCustomer, getVehicleById); // Customer-Dashboard
 
 // Vehicle CRUD operations
 router.get(
   "/",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  getAllCustomerVehicles
+  getAllCustomerVehicles //Super-Admin Dashboard
 );
 
 router.post(
   "/",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  createVehicle
+  createVehicleFromStock
 );
 
 router.put(
