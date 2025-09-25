@@ -2,8 +2,8 @@ import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 
 import logger from "../../utils/logger";
-import { BaseCustomerModel } from "../../models/CustomerSystem/BaseCustomer/BaseCustomer";
-import { CustomerProfileModel } from "../../models/CustomerSystem/BaseCustomer/CustomerProfile";
+import { BaseCustomerModel } from "../../models/CustomerSystem/BaseCustomer";
+import { CustomerProfileModel } from "../../models/CustomerSystem/CustomerProfile";
 
 /**
  * @desc    Save customer data after Firebase OTP verification

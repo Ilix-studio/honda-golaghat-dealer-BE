@@ -1,4 +1,4 @@
-import ValueAddedServiceModel from "../models/CustomerSystem/VASmodel";
+import ValueAddedServiceModel from "../models/BikeSystemModel2/VASmodel";
 
 export const seedValueAddedServices = async () => {
   const services = [

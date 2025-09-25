@@ -1,11 +1,11 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
-import ValueAddedServiceModel from "../../models/CustomerSystem/VASmodel";
+import ValueAddedServiceModel from "../../models/BikeSystemModel2/VASmodel";
 import logger from "../../utils/logger";
 import {
   CustomerVehicleModel,
   ICustomerVehicle,
-} from "../../models/CustomerSystem/CustomerVehicleModel";
+} from "../../models/BikeSystemModel2/CustomerVehicleModel";
 
 /**
  * @desc    Create value added service

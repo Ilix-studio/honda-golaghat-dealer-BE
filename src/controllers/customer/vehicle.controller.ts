@@ -3,8 +3,8 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import logger from "../../utils/logger";
 // Fixed import
-import { BaseCustomerModel } from "../../models/CustomerSystem/BaseCustomer/BaseCustomer";
-import { CustomerVehicleModel } from "../../models/CustomerSystem/CustomerVehicleModel";
+import { BaseCustomerModel } from "../../models/CustomerSystem/BaseCustomer";
+import { CustomerVehicleModel } from "../../models/BikeSystemModel2/CustomerVehicleModel";
 
 /**
  * @desc    Get all customer vehicles (Admin)

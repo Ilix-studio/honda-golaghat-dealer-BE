@@ -51,7 +51,7 @@ router.get(
   authorize("Super-Admin", "Branch-Admin"),
   getServicePackageById
 );
-router.put(
+router.patch(
   "/:id",
   protect,
   authorize("Super-Admin", "Branch-Admin"),

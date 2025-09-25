@@ -7,8 +7,8 @@ import admin from "firebase-admin";
 import {
   BaseCustomerModel,
   IBaseCustomer,
-} from "../models/CustomerSystem/BaseCustomer/BaseCustomer";
-import { CustomerProfileModel } from "../models/CustomerSystem/BaseCustomer/CustomerProfile";
+} from "../models/CustomerSystem/BaseCustomer";
+import { CustomerProfileModel } from "../models/CustomerSystem/CustomerProfile";
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {

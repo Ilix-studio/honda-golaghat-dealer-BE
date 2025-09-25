@@ -51,7 +51,7 @@ router.delete(
 );
 
 // Badge management
-router.put(
+router.patch(
   "/admin/:id/badges/:badgeId/toggle",
   protect,
   authorize("Super-Admin", "Branch-Admin"),

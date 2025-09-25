@@ -7,12 +7,12 @@ import {
   ITransmission,
   ITyresBrakes,
 } from "../../types/motorcycle.types";
-import { bodyDimensionsSchema } from "../BikeSystemModel2/motorcycleMods/bodyDimension";
-import { engineSchema } from "../BikeSystemModel2/motorcycleMods/engine";
-import { transmissionSchema } from "../BikeSystemModel2/motorcycleMods/transmission";
-import { tyresBrakesSchema } from "../BikeSystemModel2/motorcycleMods/tyresBrakes";
-import { frameSuspensionSchema } from "../BikeSystemModel2/motorcycleMods/frameSuspension";
-import { electricalsSchema } from "../BikeSystemModel2/motorcycleMods/electrical";
+import { bodyDimensionsSchema } from "./bodyDimension";
+import { electricalsSchema } from "./electrical";
+import { engineSchema } from "./engine";
+import { frameSuspensionSchema } from "./frameSuspension";
+import { transmissionSchema } from "./transmission";
+import { tyresBrakesSchema } from "./tyresBrakes";
 
 // Main Motorcycle Info Interface
 export interface IVehicleInfo extends Document {

@@ -2,7 +2,7 @@ import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 
 import mongoose from "mongoose";
-import ServiceAddonsModel from "../../models/CustomerSystem/ServiceAddons";
+import ServiceAddonsModel from "../../models/BikeSystemModel2/ServiceAddons";
 import logger from "../../utils/logger";
 
 /**

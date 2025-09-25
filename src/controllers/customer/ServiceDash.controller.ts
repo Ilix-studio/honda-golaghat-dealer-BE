@@ -1,7 +1,7 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import CustomerDashModel from "../../models/CustomerSystem/CustomerDashModel";
-import ServiceAddonsModel from "../../models/CustomerSystem/ServiceAddons";
+import ServiceAddonsModel from "../../models/BikeSystemModel2/ServiceAddons";
 
 /**
  * @desc    Get customer service dashboard
