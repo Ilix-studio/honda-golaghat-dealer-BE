@@ -39,20 +39,20 @@ const valueAddedServiceSchema = new Schema<IValueAddedService>(
       maxlength: [100, "Service name cannot exceed 100 characters"],
     },
 
-    serviceType: {
-      type: String,
-      required: [true, "Service type is required"],
-      enum: {
-        values: [
-          "Extended Warranty",
-          "Extended Warranty Plus",
-          "Annual Maintenance Contract",
-          "Engine Health Assurance",
-          "Roadside Assistance",
-        ],
-        message: "Invalid service type",
-      },
-    },
+    // serviceType: {
+    //   type: String,
+    //   required: [true, "Service type is required"],
+    //   enum: {
+    //     values: [
+    //       "Extended Warranty",
+    //       "Extended Warranty Plus",
+    //       "Annual Maintenance Contract",
+    //       "Engine Health Assurance",
+    //       "Roadside Assistance",
+    //     ],
+    //     message: "Invalid service type",
+    //   },
+    // },
 
     description: {
       type: String,

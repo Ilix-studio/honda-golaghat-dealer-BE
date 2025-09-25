@@ -51,7 +51,6 @@ export interface ICustomerVehicle extends Document {
     serviceId: mongoose.Types.ObjectId; // Reference to ValueAddedService
     activatedDate: Date;
     expiryDate: Date;
-    activatedBy: mongoose.Types.ObjectId;
     purchasePrice: number;
     coverageYears: number;
     isActive: boolean;

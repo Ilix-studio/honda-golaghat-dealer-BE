@@ -6,6 +6,7 @@ import {
   CustomerVehicleModel,
   ICustomerVehicle,
 } from "../../models/BikeSystemModel2/CustomerVehicleModel";
+import mongoose from "mongoose";
 
 /**
  * @desc    Create value added service
@@ -44,7 +45,7 @@ export const getAllValueAddedServices = asyncHandler(
 
     const total = await ValueAddedServiceModel.countDocuments(filter);
     const services = await ValueAddedServiceModel.find(filter)
-      .populate("applicableBranches", "name address")
+      .populate("applicableBranches", "branchName address")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -69,7 +70,7 @@ export const getValueAddedServiceById = asyncHandler(
   async (req: Request, res: Response) => {
     const service = await ValueAddedServiceModel.findById(
       req.params.id
-    ).populate("applicableBranches", "name address");
+    ).populate("applicableBranches", "branchName address");
 
     if (!service) {
       res.status(404);
@@ -94,7 +95,7 @@ export const updateValueAddedService = asyncHandler(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    ).populate("applicableBranches", "name address");
+    ).populate("applicableBranches", "branchName address");
 
     if (!service) {
       res.status(404);
@@ -134,6 +135,69 @@ export const deleteValueAddedService = asyncHandler(
     res.status(200).json({
       success: true,
       message: "Service deleted successfully",
+    });
+  }
+);
+
+/**
+ * @desc    Get eligible services for customer
+ * @route   GET /api/value-added-services/eligible
+ * @access  Private (Customer)
+ */
+export const getCustomerEligibleServices = asyncHandler(
+  async (req: Request, res: Response) => {
+    const customerId = req.customer?._id;
+
+    const vehicles = await CustomerVehicleModel.find({
+      customerPhoneNumber: customerId,
+      isActive: true,
+    });
+
+    if (vehicles.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: "No vehicles found",
+      });
+      return;
+    }
+
+    const eligibleServices = await Promise.all(
+      vehicles.map(async (vehicle: ICustomerVehicle) => {
+        // Get vehicle age in months
+        const vehicleAgeMonths = Math.floor(
+          (new Date().getTime() -
+            new Date(vehicle.registrationDate || vehicle.createdAt).getTime()) /
+            (1000 * 60 * 60 * 24 * 30)
+        );
+
+        // Find eligible services
+        const services = await ValueAddedServiceModel.find({
+          isActive: true,
+          validFrom: { $lte: new Date() },
+          validUntil: { $gte: new Date() },
+          maxEnrollmentPeriod: { $gte: vehicleAgeMonths },
+        });
+
+        const eligibleForVehicle = services.filter(
+          (service) => (service as any).isVehicleEligible(125, "commuter") // Mock data
+        );
+
+        return {
+          vehicle: {
+            _id: vehicle._id,
+            modelName: vehicle.modelName,
+            numberPlate: vehicle.numberPlate,
+            registrationDate: vehicle.registrationDate,
+            ageMonths: vehicleAgeMonths,
+          },
+          eligibleServices: eligibleForVehicle,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: eligibleServices,
     });
   }
 );
@@ -254,7 +318,9 @@ export const getServicesByType = asyncHandler(
  */
 export const activateCustomerService = asyncHandler(
   async (req: Request, res: Response) => {
-    const { customerId, vehicleId, serviceId, activeBadges } = req.body;
+    const { customerId, vehicleId, serviceId, activeBadges, purchasePrice } =
+      req.body;
+    const adminId = req.user?._id;
 
     const service = await ValueAddedServiceModel.findById(serviceId);
     if (!service) {
@@ -264,19 +330,36 @@ export const activateCustomerService = asyncHandler(
 
     const vehicle = await CustomerVehicleModel.findOne({
       _id: vehicleId,
-      customer: customerId,
-    });
+      customerPhoneNumber: customerId,
+    }).populate("customerPhoneNumber", "phoneNumber");
+
     if (!vehicle) {
       res.status(404);
       throw new Error("Vehicle not found for customer");
     }
 
-    // Create customer service activation record (you'd need a separate model for this)
+    // Calculate expiry date
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
 
+    // Add VAS to vehicle's active services
+    const newVAS = {
+      serviceId: new mongoose.Types.ObjectId(service._id),
+      activatedDate: new Date(),
+      expiryDate,
+      purchasePrice: Number(purchasePrice) || 0,
+      coverageYears: service.coverageYears,
+      isActive: true,
+      activeBadges: activeBadges || [],
+    };
+
+    vehicle.activeValueAddedServices.push(newVAS);
+    await vehicle.save();
+
     logger.info(
-      `Service ${service.serviceName} activated for customer ${customerId} vehicle ${vehicle.numberPlate}`
+      `Service ${service.serviceName} activated for customer ${
+        (vehicle.customerPhoneNumber as any)?.phoneNumber
+      } vehicle ${vehicle.numberPlate}`
     );
 
     res.status(200).json({
@@ -284,10 +367,12 @@ export const activateCustomerService = asyncHandler(
       message: "Service activated successfully",
       data: {
         customer: customerId,
+        customerPhone: (vehicle.customerPhoneNumber as any)?.phoneNumber,
         vehicle: vehicle.numberPlate,
         service: service.serviceName,
         activeBadges: activeBadges || [],
         expiryDate,
+        purchasePrice: purchasePrice || 0,
       },
     });
   }
@@ -303,9 +388,14 @@ export const getCustomerActiveServices = asyncHandler(
     const customerId = req.customer?._id;
 
     const vehicles = await CustomerVehicleModel.find({
-      customer: customerId,
+      customerPhoneNumber: customerId,
       isActive: true,
-    });
+    })
+      .populate("customerPhoneNumber", "phoneNumber")
+      .populate(
+        "activeValueAddedServices.serviceId",
+        "serviceName serviceType description"
+      );
 
     // Use the activeValueAddedServices array from the vehicle model
     const activeServices = vehicles.map((vehicle: ICustomerVehicle) => ({
@@ -313,22 +403,86 @@ export const getCustomerActiveServices = asyncHandler(
         _id: vehicle._id,
         modelName: vehicle.modelName,
         numberPlate: vehicle.numberPlate,
+        customerPhone: (vehicle.customerPhoneNumber as any)?.phoneNumber,
       },
       services: vehicle.activeValueAddedServices
         .filter((service) => service.isActive)
         .map((service) => ({
           serviceId: service.serviceId,
+          serviceName: (service.serviceId as any)?.serviceName,
+          serviceType: (service.serviceId as any)?.serviceType,
           activatedDate: service.activatedDate,
           expiryDate: service.expiryDate,
           purchasePrice: service.purchasePrice,
           coverageYears: service.coverageYears,
           activeBadges: service.activeBadges,
+          isActive: service.isActive,
         })),
     }));
 
     res.status(200).json({
       success: true,
       data: activeServices,
+    });
+  }
+);
+
+/**
+ * @desc    Get all customers with active VAS (Admin)
+ * @route   GET /api/value-added-services/admin/customers
+ * @access  Private (Admin)
+ */
+export const getCustomersWithActiveVAS = asyncHandler(
+  async (req: Request, res: Response) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const vehicles = await CustomerVehicleModel.find({
+      isActive: true,
+      "activeValueAddedServices.0": { $exists: true }, // Has at least one VAS
+    })
+      .populate("customerPhoneNumber", "phoneNumber")
+      .populate("activeValueAddedServices.serviceId", "serviceName serviceType")
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await CustomerVehicleModel.countDocuments({
+      isActive: true,
+      "activeValueAddedServices.0": { $exists: true },
+    });
+
+    const customersWithVAS = vehicles.map((vehicle) => ({
+      customer: {
+        _id: (vehicle.customerPhoneNumber as any)?._id,
+        phoneNumber: (vehicle.customerPhoneNumber as any)?.phoneNumber,
+      },
+      vehicle: {
+        _id: vehicle._id,
+        modelName: vehicle.modelName,
+        numberPlate: vehicle.numberPlate,
+      },
+      activeServices: vehicle.activeValueAddedServices
+        .filter((service) => service.isActive)
+        .map((service) => ({
+          serviceId: service.serviceId,
+          serviceName: (service.serviceId as any)?.serviceName,
+          serviceType: (service.serviceId as any)?.serviceType,
+          activatedDate: service.activatedDate,
+          expiryDate: service.expiryDate,
+          purchasePrice: service.purchasePrice,
+          activeBadges: service.activeBadges,
+        })),
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: customersWithVAS.length,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
+      data: customersWithVAS,
     });
   }
 );
