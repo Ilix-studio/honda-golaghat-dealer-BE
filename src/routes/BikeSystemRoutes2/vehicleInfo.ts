@@ -15,7 +15,7 @@ import {
   transferVehicle,
   createVehicleFromStock,
   updateVehicle,
-} from "../../controllers/customer/vehicle.controller";
+} from "../../controllers/BikeSystemController2/vehicle.controller";
 
 const router = express.Router();
 

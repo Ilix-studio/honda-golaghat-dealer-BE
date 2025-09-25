@@ -1,21 +1,22 @@
 // src/routes/getapproved.ts
 import express from "express";
-import { authorize, protect } from "../middleware/authmiddleware";
+import { authorize, protect } from "../../middleware/authmiddleware";
+
 import {
+  checkApplicationStatus,
+  getApplicationsByBranch,
   submitApplication,
   getAllApplications,
   getApplicationById,
   updateApplicationStatus,
   deleteApplication,
   getApplicationStats,
-  getApplicationsByBranch,
-  checkApplicationStatus,
   submitApplicationWithBike,
   getApplicationsWithBikes,
   updateBikeEnquiry,
   // getBikeRecommendations,
   getEnquiryStats,
-} from "../controllers/getapproved.controller";
+} from "../../controllers/CustomerController/getapproved.controller";
 
 const router = express.Router();
 // "/api/getapproved"

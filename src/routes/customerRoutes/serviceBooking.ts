@@ -1,15 +1,16 @@
 import express from "express";
+
+import { protect, authorize } from "../../middleware/authmiddleware";
 import {
+  getBranchUpcomingAppointments,
   createServiceBooking,
   getServiceBookings,
   getServiceBookingById,
   updateBookingStatus,
   cancelServiceBooking,
-  getBranchUpcomingAppointments,
   getBookingStats,
   checkTimeSlotAvailability,
-} from "../controllers/serviceBooking.controller";
-import { protect, authorize } from "../middleware/authmiddleware";
+} from "../../controllers/CustomerController/serviceBooking.controller";
 
 const router = express.Router();
 

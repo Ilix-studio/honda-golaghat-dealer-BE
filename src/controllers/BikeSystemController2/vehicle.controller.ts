@@ -96,7 +96,7 @@ export const getVehicleById = asyncHandler(
     // Check if customer is accessing their own vehicle
     if (
       req.customer &&
-      vehicle.customer._id.toString() !== req.customer._id.toString()
+      vehicle.customerPhoneNumber._id.toString() !== req.customer._id.toString()
     ) {
       res.status(403);
       throw new Error("Access denied");
@@ -117,23 +117,24 @@ export const getVehicleById = asyncHandler(
 export const createVehicleFromStock = asyncHandler(
   async (req: Request, res: Response) => {
     const {
+      customerPhoneNumber,
       registrationDate,
       insurance,
       isPaid,
       isFinance,
       color,
       purchaseDate,
-      customer,
       numberPlate,
       registeredOwnerName,
       motorcyclePhoto,
       rtoInfo,
       servicePackageId,
-      stockId,
     } = req.body;
 
     // Validate customer exists
-    const customerExists = await BaseCustomerModel.findById(customer);
+    const customerExists = await BaseCustomerModel.findById(
+      customerPhoneNumber
+    );
     if (!customerExists) {
       res.status(404);
       throw new Error("Customer not found");
@@ -158,7 +159,7 @@ export const createVehicleFromStock = asyncHandler(
       isFinance,
       color,
       purchaseDate,
-      customer,
+      customerPhoneNumber,
       numberPlate: numberPlate?.toUpperCase(),
       registeredOwnerName,
       motorcyclePhoto,
@@ -307,8 +308,6 @@ export const deleteVehicle = asyncHandler(
 export const updateServiceStatus = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { lastServiceDate, nextServiceDue, serviceType, kilometers } =
-      req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400);
@@ -319,18 +318,6 @@ export const updateServiceStatus = asyncHandler(
     if (!vehicle) {
       res.status(404);
       throw new Error("Vehicle not found");
-    }
-
-    // Update service status
-    if (lastServiceDate)
-      vehicle.serviceStatus.lastServiceDate = lastServiceDate;
-    if (nextServiceDue) vehicle.serviceStatus.nextServiceDue = nextServiceDue;
-    if (serviceType) vehicle.serviceStatus.serviceType = serviceType;
-    if (kilometers !== undefined) vehicle.serviceStatus.kilometers = kilometers;
-
-    // Increment service history if last service date is updated
-    if (lastServiceDate) {
-      vehicle.serviceStatus.serviceHistory += 1;
     }
 
     await vehicle.save();
@@ -470,17 +457,6 @@ export const addVASToVehicle = asyncHandler(
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + coverageYears);
 
-    vehicle.activeValueAddedServices.push({
-      serviceId: new mongoose.Types.ObjectId(serviceId),
-      activatedDate: new Date(),
-      expiryDate,
-      activatedBy: new mongoose.Types.ObjectId(),
-      purchasePrice,
-      coverageYears,
-      isActive: true,
-      activeBadges: selectedBadges || [],
-    });
-
     await vehicle.save();
 
     res.status(200).json({
@@ -488,9 +464,6 @@ export const addVASToVehicle = asyncHandler(
       message: "Value added service activated successfully",
       data: {
         vehicleId: vehicle._id,
-        activeServicesCount: vehicle.activeValueAddedServices.filter(
-          (s) => s.isActive
-        ).length,
       },
     });
   }

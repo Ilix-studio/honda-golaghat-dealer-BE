@@ -139,69 +139,6 @@ export const deleteValueAddedService = asyncHandler(
 );
 
 /**
- * @desc    Get eligible services for customer
- * @route   GET /api/value-added-services/eligible
- * @access  Private (Customer)
- */
-export const getCustomerEligibleServices = asyncHandler(
-  async (req: Request, res: Response) => {
-    const customerId = req.customer?._id;
-
-    const vehicles = await CustomerVehicleModel.find({
-      customer: customerId,
-      isActive: true,
-    });
-
-    if (vehicles.length === 0) {
-      res.status(404).json({
-        success: false,
-        message: "No vehicles found",
-      });
-      return;
-    }
-
-    const eligibleServices = await Promise.all(
-      vehicles.map(async (vehicle: ICustomerVehicle) => {
-        // Get vehicle age in months
-        const vehicleAgeMonths = Math.floor(
-          (new Date().getTime() -
-            new Date(vehicle.registrationDate || vehicle.createdAt).getTime()) /
-            (1000 * 60 * 60 * 24 * 30)
-        );
-
-        // Find eligible services
-        const services = await ValueAddedServiceModel.find({
-          isActive: true,
-          validFrom: { $lte: new Date() },
-          validUntil: { $gte: new Date() },
-          maxEnrollmentPeriod: { $gte: vehicleAgeMonths },
-        });
-
-        const eligibleForVehicle = services.filter(
-          (service) => (service as any).isVehicleEligible(125, "commuter") // Mock data - you'd get actual engine capacity
-        );
-
-        return {
-          vehicle: {
-            _id: vehicle._id,
-            modelName: vehicle.modelName,
-            numberPlate: vehicle.numberPlate,
-            registrationDate: vehicle.registrationDate,
-            ageMonths: vehicleAgeMonths,
-          },
-          eligibleServices: eligibleForVehicle,
-        };
-      })
-    );
-
-    res.status(200).json({
-      success: true,
-      data: eligibleServices,
-    });
-  }
-);
-
-/**
  * @desc    Toggle badge status
  * @route   PUT /api/value-added-services/admin/:id/badges/:badgeId/toggle
  * @access  Private (Admin)
@@ -318,7 +255,6 @@ export const getServicesByType = asyncHandler(
 export const activateCustomerService = asyncHandler(
   async (req: Request, res: Response) => {
     const { customerId, vehicleId, serviceId, activeBadges } = req.body;
-    const adminId = req.user?._id;
 
     const service = await ValueAddedServiceModel.findById(serviceId);
     if (!service) {
@@ -338,9 +274,6 @@ export const activateCustomerService = asyncHandler(
     // Create customer service activation record (you'd need a separate model for this)
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
-
-    // For now, we'll add this info to a separate collection or extend CustomerVehicleModel
-    // This is a simplified implementation - you'd want a proper CustomerActiveServices model
 
     logger.info(
       `Service ${service.serviceName} activated for customer ${customerId} vehicle ${vehicle.numberPlate}`

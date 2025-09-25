@@ -3,7 +3,7 @@ import express from "express";
 import {
   saveAuthData,
   loginCustomer,
-} from "../../controllers/customer/customer.controller";
+} from "../../controllers/CustomerController/customer.controller";
 
 const router = express.Router();
 

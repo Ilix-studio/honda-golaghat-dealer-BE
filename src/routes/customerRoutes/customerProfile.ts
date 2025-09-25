@@ -10,7 +10,7 @@ import {
   updateCustomerProfile,
   getAllCustomers,
   getCustomerById,
-} from "../../controllers/customer/profile.controller";
+} from "../../controllers/CustomerController/profile.controller";
 
 const router = express.Router();
 

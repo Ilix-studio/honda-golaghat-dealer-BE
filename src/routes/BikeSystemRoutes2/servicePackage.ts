@@ -8,7 +8,7 @@ import {
   deleteServicePackage,
   getActiveServicePackages,
   getCustomerServicePackages,
-} from "../../controllers/customer/servicePackage.controller";
+} from "../../controllers/BikeSystemController2/servicePackage.controller";
 import { authorize, protect } from "../../middleware/authmiddleware";
 import {
   protectAdminOrCustomer,

@@ -6,12 +6,11 @@ import {
   getValueAddedServiceById,
   updateValueAddedService,
   deleteValueAddedService,
-  getCustomerEligibleServices,
   toggleBadgeStatus,
   calculateServicePrice,
   getCustomerActiveServices,
   getServicesByType,
-} from "../../controllers/customer/vas.controller";
+} from "../../controllers/BikeSystemController2/vas.controller";
 import { authorize, protect } from "../../middleware/authmiddleware";
 import { protectCustomer } from "../../middleware/customerMiddleware";
 
@@ -67,7 +66,6 @@ router.post(
 );
 
 // ===== CUSTOMER ROUTES =====
-router.get("/eligible", protectCustomer, getCustomerEligibleServices);
 router.get("/my-services", protectCustomer, getCustomerActiveServices);
 router.post("/calculate-price", protectCustomer, calculateServicePrice);
 

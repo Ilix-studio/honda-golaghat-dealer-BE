@@ -1,7 +1,7 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import VehicleInfo from "../../models/motorcycleMods/VehicleInfoModel";
+import VehicleInfo from "../../models/BikeSystemModel2/motorcycleMods/VehicleInfoModel";
 
 /**
  * @desc    Create motorcycle info

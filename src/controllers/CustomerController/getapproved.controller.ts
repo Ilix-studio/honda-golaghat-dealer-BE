@@ -1,9 +1,8 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
-import GetApproved from "../models/GetApproved";
+import GetApproved from "../../models/CustomerSystem/GetApproved";
 import mongoose from "mongoose";
-import logger from "../utils/logger";
-import BikeModel from "../models/BikeSystemModel/Bikes";
+import logger from "../../utils/logger";
 
 /**
  * @desc    Submit a new GetApproved application

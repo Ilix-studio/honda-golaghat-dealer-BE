@@ -1,18 +1,19 @@
 import mongoose, { Schema } from "mongoose";
-import {
-  IBodyDimensions,
-  IElectricals,
-  IEngine,
-  IFrameSuspension,
-  ITransmission,
-  ITyresBrakes,
-} from "../../types/motorcycle.types";
+
 import { bodyDimensionsSchema } from "./bodyDimension";
 import { electricalsSchema } from "./electrical";
 import { engineSchema } from "./engine";
 import { frameSuspensionSchema } from "./frameSuspension";
 import { transmissionSchema } from "./transmission";
 import { tyresBrakesSchema } from "./tyresBrakes";
+import {
+  IFrameSuspension,
+  IBodyDimensions,
+  IElectricals,
+  IEngine,
+  ITransmission,
+  ITyresBrakes,
+} from "../../../types/motorcycle.types";
 
 // Main Motorcycle Info Interface
 export interface IVehicleInfo extends Document {

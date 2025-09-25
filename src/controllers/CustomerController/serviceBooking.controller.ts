@@ -1,17 +1,15 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
-
-import Branch from "../models/Branch";
 import mongoose from "mongoose";
-import logger from "../utils/logger";
+import Branch from "../../models/Branch";
+import { ServiceBooking } from "../../models/CustomerSystem/ServiceBooking";
 import {
-  isAdmin,
-  isBranchManager,
-  getUserRole,
-  getUserBranch,
   canAccessBranch,
-} from "../types/user.types";
-import { ServiceBooking } from "../models/CustomerSystem/ServiceBooking";
+  getUserBranch,
+  getUserRole,
+  isBranchManager,
+} from "../../types/user.types";
+import logger from "../../utils/logger";
 
 /**
  * @desc    Create a new service booking
