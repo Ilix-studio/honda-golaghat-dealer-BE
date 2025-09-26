@@ -1,7 +1,31 @@
 import mongoose, { Schema } from "mongoose";
-import { IServiceAddon, IServicePackage } from "../../types/serviceAddon.types";
 
-// Service Package Schema
+// Simplified Service Package Interface
+export interface IServicePackage {
+  name: string;
+  kilometers: number;
+  months: number;
+  isFree: boolean;
+  cost: number; // in INR
+  items: string[];
+  laborCharges: number;
+  partsReplaced: string[];
+  estimatedTime: number; // in minutes
+}
+
+// Simplified Service Addon Interface
+export interface IServiceAddon extends Document {
+  _id: string;
+  serviceName: IServicePackage;
+  validFrom: Date;
+  validUntil: Date;
+  branch: mongoose.Types.ObjectId;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Service Package Schema (unchanged)
 const servicePackageSchema = new Schema<IServicePackage>({
   name: {
     type: String,
@@ -55,66 +79,30 @@ const servicePackageSchema = new Schema<IServicePackage>({
   },
 });
 
-// Main Schema
+// Simplified Main Schema
 const serviceAddonsSchema = new Schema<IServiceAddon>(
   {
-    modelName: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MotorcycleInfo",
-      required: [true, "Motorcycle model is required"],
-    },
-
-    // Free Services
-    firstService: {
+    serviceName: {
       type: servicePackageSchema,
-      required: [true, "First service details required"],
+      required: [true, "Service details required"],
     },
-    secondService: {
-      type: servicePackageSchema,
-      required: [true, "Second service details required"],
-    },
-    thirdService: {
-      type: servicePackageSchema,
-      required: [true, "Third service details required"],
-    },
-
-    // Paid Services
-    paidServiceOne: {
-      type: servicePackageSchema,
-      required: [true, "Paid service one details required"],
-    },
-    paidServiceTwo: {
-      type: servicePackageSchema,
-      required: [true, "Paid service two details required"],
-    },
-    paidServiceThree: {
-      type: servicePackageSchema,
-    },
-    paidServiceFour: {
-      type: servicePackageSchema,
-    },
-    paidServiceFive: {
-      type: servicePackageSchema,
-    },
-
-    // Additional services
-    additionalServices: [servicePackageSchema],
 
     validFrom: {
       type: Date,
       required: [true, "Valid from date required"],
       default: Date.now,
     },
+
     validUntil: {
       type: Date,
       required: [true, "Valid until date required"],
     },
-    applicableBranches: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Branch",
-      },
-    ],
+
+    branch: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+      required: [true, "Branch is required"],
+    },
 
     isActive: {
       type: Boolean,
@@ -127,27 +115,15 @@ const serviceAddonsSchema = new Schema<IServiceAddon>(
 );
 
 // Indexes
-serviceAddonsSchema.index({ motorcycleModel: 1 });
+serviceAddonsSchema.index({ branch: 1 });
 serviceAddonsSchema.index({ isActive: 1 });
 serviceAddonsSchema.index({ validFrom: 1, validUntil: 1 });
 
-// Pre-save validation
+// Date validation
 serviceAddonsSchema.pre("save", function (next) {
-  // Ensure first 3 services are free
-  this.firstService.isFree = true;
-  this.firstService.cost = 0;
-  this.secondService.isFree = true;
-  this.secondService.cost = 0;
-  this.thirdService.isFree = true;
-  this.thirdService.cost = 0;
-
-  // Ensure paid services are not free
-  this.paidServiceOne.isFree = false;
-  this.paidServiceTwo.isFree = false;
-  if (this.paidServiceThree) this.paidServiceThree.isFree = false;
-  if (this.paidServiceFour) this.paidServiceFour.isFree = false;
-  if (this.paidServiceFive) this.paidServiceFive.isFree = false;
-
+  if (this.validUntil <= this.validFrom) {
+    return next(new Error("Valid until date must be after valid from date"));
+  }
   next();
 });
 

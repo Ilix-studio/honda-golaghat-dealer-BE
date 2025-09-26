@@ -178,7 +178,6 @@ export const createVehicleFromStock = asyncHandler(
         completedServices: [],
       },
       serviceStatus: {
-        serviceType: "Regular",
         kilometers: 0,
         serviceHistory: 0,
       },

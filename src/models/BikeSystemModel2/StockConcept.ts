@@ -6,7 +6,6 @@ export interface IStockConcept extends Document {
     bikeModelId: mongoose.Types.ObjectId;
     modelName: string;
     category: string;
-    brand: string;
     engineCC: number;
     fuelType: string;
     color: string;
@@ -38,12 +37,6 @@ export interface IStockConcept extends Document {
   };
   salesInfo?: {
     soldTo: mongoose.Types.ObjectId; // Reference to BaseCustomer
-    soldDate: Date;
-    salePrice: number;
-    salesPerson: mongoose.Types.ObjectId;
-    invoiceNumber: string;
-    paymentStatus: "Paid" | "Partial" | "Pending";
-    customerVehicleId?: mongoose.Types.ObjectId; // Link to CustomerVehicle after delivery
   };
   priceInfo: {
     exShowroomPrice: number;
@@ -75,7 +68,6 @@ const stockConceptSchema = new Schema<IStockConcept>(
       },
       modelName: { type: String, required: true },
       category: { type: String, required: true },
-      brand: { type: String, required: true },
       engineCC: { type: Number, required: true },
       fuelType: {
         type: String,

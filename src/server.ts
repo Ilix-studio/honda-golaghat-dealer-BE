@@ -22,7 +22,7 @@ import serviceBookingRoutes from "./routes/customerRoutes/serviceBooking";
 import servicePackageRoutes from "./routes/BikeSystemRoutes2/servicePackage";
 import valueAddedServicesRoutes from "./routes/BikeSystemRoutes2/VAS";
 import visitorRoutes from "./routes/visitorR";
-import vehicleInfoRoutes from "./routes/BikeSystemRoutes2/vehicleInfo";
+import vehicleInfoRoutes from "./routes/BikeSystemRoutes2/CustomerVehicleRoutes";
 import stockConceptRoutes from "./routes/BikeSystemRoutes2/stockConcept";
 
 import corsOptions from "./config/corOptions";

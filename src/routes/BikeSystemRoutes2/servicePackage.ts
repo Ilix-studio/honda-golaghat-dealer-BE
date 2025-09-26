@@ -1,62 +1,45 @@
 import express from "express";
-import {
-  getServicePackagesByMotorcycle,
-  createServicePackage,
-  getAllServicePackages,
-  getServicePackageById,
-  updateServicePackage,
-  deleteServicePackage,
-  getActiveServicePackages,
-  getCustomerServicePackages,
-} from "../../controllers/BikeSystemController2/servicePackage.controller";
 import { authorize, protect } from "../../middleware/authmiddleware";
 import {
-  protectAdminOrCustomer,
-  protectCustomer,
-} from "../../middleware/customerMiddleware";
+  assignServiceToCustomer,
+  createServiceAddon,
+  getServiceAddonById,
+  getServiceAddons,
+} from "../../controllers/BikeSystemController2/servicePackage.controller";
 
 const router = express.Router();
-// "/api/service-packages"
+// "/api/service-addons"
 
-// ===== CUSTOMER ROUTES =====
-router.get(
-  "/customer/:motorcycleModel",
-  protectCustomer,
-  getCustomerServicePackages
-);
-
-// ===== ADMIN ROUTES =====
+// Create service addon (Admin only)
 router.post(
-  "/",
+  "/create",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  createServicePackage
+  createServiceAddon
 );
+
+// Get all service addons with filtering
 router.get(
   "/",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  getAllServicePackages
+  getServiceAddons
 );
-router.get("/active", protectAdminOrCustomer, getActiveServicePackages);
-router.get(
-  "/motorcycle/:motorcycleId",
-  protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  getServicePackagesByMotorcycle
-);
+
+// Get service addon by ID
 router.get(
   "/:id",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  getServicePackageById
+  getServiceAddonById
 );
-router.patch(
-  "/:id",
+
+// Assign service to customer
+router.post(
+  "/:id/assign",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  updateServicePackage
+  assignServiceToCustomer
 );
-router.delete("/:id", protect, authorize("Super-Admin"), deleteServicePackage);
 
 export default router;

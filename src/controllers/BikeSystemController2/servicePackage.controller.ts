@@ -1,389 +1,218 @@
 import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
-
-import mongoose from "mongoose";
 import ServiceAddonsModel from "../../models/BikeSystemModel2/ServiceAddons";
+import { CustomerVehicleModel } from "../../models/BikeSystemModel2/CustomerVehicleModel";
+import { BaseCustomerModel } from "../../models/CustomerSystem/BaseCustomer";
+import mongoose from "mongoose";
 import logger from "../../utils/logger";
 
 /**
- * @desc    Create service package
- * @route   POST /api/service-packages
+ * @desc    Create service addon
+ * @route   POST /api/service-addons/create
  * @access  Private (Admin)
  */
-export const createServicePackage = asyncHandler(
+export const createServiceAddon = asyncHandler(
   async (req: Request, res: Response) => {
-    const {
-      modelName,
-      firstService,
-      secondService,
-      thirdService,
-      paidServiceOne,
-      paidServiceTwo,
-      paidServiceThree,
-      paidServiceFour,
-      paidServiceFive,
-      additionalServices,
-      validFrom,
-      validUntil,
-      applicableBranches,
-    } = req.body;
+    const { serviceName, validFrom, validUntil, branch } = req.body;
 
-    // Check if service package already exists for this motorcycle
-    const existingPackage = await ServiceAddonsModel.findOne({
-      modelName,
-      isActive: true,
-    });
-
-    if (existingPackage) {
+    // Validate required fields
+    if (!serviceName || !validUntil || !branch) {
       res.status(400);
-      throw new Error(
-        "Service package already exists for this motorcycle model"
-      );
+      throw new Error("Please provide all required fields");
     }
 
-    const servicePackage = await ServiceAddonsModel.create({
-      modelName,
-      firstService,
-      secondService,
-      thirdService,
-      paidServiceOne,
-      paidServiceTwo,
-      paidServiceThree,
-      paidServiceFour,
-      paidServiceFive,
-      additionalServices: additionalServices || [],
+    // Validate branch exists
+    if (!mongoose.Types.ObjectId.isValid(branch)) {
+      res.status(400);
+      throw new Error("Invalid branch ID");
+    }
+
+    // Create service addon
+    const serviceAddon = await ServiceAddonsModel.create({
+      serviceName,
       validFrom: validFrom || new Date(),
       validUntil,
-      applicableBranches: applicableBranches || [],
+      branch,
     });
 
-    await servicePackage.populate("modelName", "modelName category");
+    await serviceAddon.populate("branch", "branchName address");
 
-    logger.info(
-      `Service package created for motorcycle: ${servicePackage.modelName}`
-    );
+    logger.info(`Service addon created: ${serviceName.name}`);
 
     res.status(201).json({
       success: true,
-      message: "Service package created successfully",
-      data: servicePackage,
+      message: "Service addon created successfully",
+      data: serviceAddon,
     });
   }
 );
 
 /**
- * @desc    Get all service packages
- * @route   GET /api/service-packages
+ * @desc    Get all service addons
+ * @route   GET /api/service-addons
  * @access  Private (Admin)
  */
-export const getAllServicePackages = asyncHandler(
+export const getServiceAddons = asyncHandler(
   async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
+    // Build filter
     const filter: any = {};
-    if (req.query.isActive !== undefined) {
+    if (req.query.branch) filter.branch = req.query.branch;
+    if (req.query.isActive !== undefined)
       filter.isActive = req.query.isActive === "true";
-    }
-    if (req.query.modelName) {
-      filter.modelName = req.query.modelName;
-    }
 
     const total = await ServiceAddonsModel.countDocuments(filter);
-    const servicePackages = await ServiceAddonsModel.find(filter)
-      .populate("modelName", "modelName category")
-      .populate("applicableBranches", "name address")
+    const serviceAddons = await ServiceAddonsModel.find(filter)
+      .populate("branch", "branchName address")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     res.status(200).json({
       success: true,
-      count: servicePackages.length,
+      count: serviceAddons.length,
       total,
       pages: Math.ceil(total / limit),
       currentPage: page,
-      data: servicePackages,
+      data: serviceAddons,
     });
   }
 );
 
 /**
- * @desc    Get service package by ID
- * @route   GET /api/service-packages/:id
+ * @desc    Get service addon by ID
+ * @route   GET /api/service-addons/:id
  * @access  Private (Admin)
  */
-export const getServicePackageById = asyncHandler(
+export const getServiceAddonById = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400);
-      throw new Error("Invalid service package ID");
+      throw new Error("Invalid service addon ID");
     }
 
-    const servicePackage = await ServiceAddonsModel.findById(id)
-      .populate("modelName", "modelName category")
-      .populate("applicableBranches", "name address");
+    const serviceAddon = await ServiceAddonsModel.findById(id).populate(
+      "branch",
+      "branchName address phone"
+    );
 
-    if (!servicePackage) {
+    if (!serviceAddon) {
       res.status(404);
-      throw new Error("Service package not found");
+      throw new Error("Service addon not found");
     }
 
     res.status(200).json({
       success: true,
-      data: servicePackage,
+      data: serviceAddon,
     });
   }
 );
 
 /**
- * @desc    Update service package
- * @route   PUT /api/service-packages/:id
+ * @desc    Assign service to customer
+ * @route   POST /api/service-addons/:id/assign
  * @access  Private (Admin)
  */
-export const updateServicePackage = asyncHandler(
+export const assignServiceToCustomer = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
+    const { customerId, vehicleId, purchasePrice } = req.body;
 
+    // Validate service addon exists
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400);
-      throw new Error("Invalid service package ID");
+      throw new Error("Invalid service addon ID");
     }
 
-    const servicePackage = await ServiceAddonsModel.findById(id);
-    if (!servicePackage) {
+    const serviceAddon = await ServiceAddonsModel.findById(id);
+    if (!serviceAddon) {
       res.status(404);
-      throw new Error("Service package not found");
+      throw new Error("Service addon not found");
     }
 
-    const updatedPackage = await ServiceAddonsModel.findByIdAndUpdate(
-      id,
-      req.body,
-      { new: true, runValidators: true }
-    )
-      .populate("modelName", "modelName category")
-      .populate("applicableBranches", "name address");
-
-    logger.info(`Service package updated: ${updatedPackage?.modelName}`);
-
-    res.status(200).json({
-      success: true,
-      message: "Service package updated successfully",
-      data: updatedPackage,
-    });
-  }
-);
-
-/**
- * @desc    Delete service package
- * @route   DELETE /api/service-packages/:id
- * @access  Private (Super-Admin)
- */
-export const deleteServicePackage = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-
-    const servicePackage = await ServiceAddonsModel.findById(id);
-    if (!servicePackage) {
-      res.status(404);
-      throw new Error("Service package not found");
-    }
-
-    // Soft delete
-    await ServiceAddonsModel.findByIdAndUpdate(id, { isActive: false });
-
-    logger.warn(`Service package deleted: ${servicePackage.modelName}`);
-
-    res.status(200).json({
-      success: true,
-      message: "Service package deleted successfully",
-    });
-  }
-);
-
-/**
- * @desc    Get service packages by motorcycle
- * @route   GET /api/service-packages/motorcycle/:motorcycleId
- * @access  Private (Admin)
- */
-export const getServicePackagesByMotorcycle = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { motorcycleId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(motorcycleId)) {
+    // Validate customer exists
+    if (!mongoose.Types.ObjectId.isValid(customerId)) {
       res.status(400);
-      throw new Error("Invalid motorcycle ID");
+      throw new Error("Invalid customer ID");
     }
 
-    const servicePackages = await ServiceAddonsModel.find({
-      modelName: motorcycleId,
-      isActive: true,
-    })
-      .populate("modelName", "modelName category")
-      .populate("applicableBranches", "name address")
-      .sort({ createdAt: -1 });
+    const customer = await BaseCustomerModel.findById(customerId);
+    if (!customer) {
+      res.status(404);
+      throw new Error("Customer not found");
+    }
 
-    res.status(200).json({
-      success: true,
-      count: servicePackages.length,
-      data: servicePackages,
-    });
-  }
-);
-
-/**
- * @desc    Get active service packages
- * @route   GET /api/service-packages/active
- * @access  Private (Admin or Customer)
- */
-export const getActiveServicePackages = asyncHandler(
-  async (req: Request, res: Response) => {
-    const currentDate = new Date();
-
-    const servicePackages = await ServiceAddonsModel.find({
-      isActive: true,
-      validFrom: { $lte: currentDate },
-      validUntil: { $gte: currentDate },
-    })
-      .populate("modelName", "modelName category")
-      .populate("applicableBranches", "name address")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: servicePackages.length,
-      data: servicePackages,
-    });
-  }
-);
-
-/**
- * @desc    Get customer service packages
- * @route   GET /api/service-packages/customer/:modelName
- * @access  Private (Customer)
- */
-export const getCustomerServicePackages = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { modelName } = req.params;
-    const customerId = req.customer?._id;
-
-    if (!mongoose.Types.ObjectId.isValid(modelName)) {
+    // Validate vehicle exists and belongs to customer
+    if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
       res.status(400);
-      throw new Error("Invalid motorcycle model ID");
+      throw new Error("Invalid vehicle ID");
     }
 
-    // Find customer's vehicle to determine service eligibility
-    const CustomerDashModel = require("../models/CustomerDashModel");
-    const customerVehicle = await CustomerDashModel.findOne({
-      customer: customerId,
+    const vehicle = await CustomerVehicleModel.findOne({
+      _id: vehicleId,
+      customerPhoneNumber: customerId,
       isActive: true,
-    }).populate("customer");
-
-    if (!customerVehicle) {
-      res.status(404);
-      throw new Error("No vehicle found for customer");
-    }
-
-    const currentDate = new Date();
-    const servicePackage = await ServiceAddonsModel.findOne({
-      modelName,
-      isActive: true,
-      validFrom: { $lte: currentDate },
-      validUntil: { $gte: currentDate },
-    })
-      .populate("modelName", "modelName category")
-      .populate("applicableBranches", "name address");
-
-    if (!servicePackage) {
-      res.status(404);
-      throw new Error("No service package found for this motorcycle");
-    }
-
-    // Determine available services based on vehicle service history
-    const serviceHistory = customerVehicle.serviceStatus.serviceHistory;
-    const availableServices = [];
-
-    // Free services (first 3)
-    if (serviceHistory === 0) {
-      availableServices.push({
-        type: "firstService",
-        service: servicePackage.firstService,
-        eligible: true,
-        description: "First Free Service",
-      });
-    } else if (serviceHistory === 1) {
-      availableServices.push({
-        type: "secondService",
-        service: servicePackage.secondService,
-        eligible: true,
-        description: "Second Free Service",
-      });
-    } else if (serviceHistory === 2) {
-      availableServices.push({
-        type: "thirdService",
-        service: servicePackage.thirdService,
-        eligible: true,
-        description: "Third Free Service",
-      });
-    }
-
-    // Paid services
-    if (serviceHistory >= 3) {
-      availableServices.push(
-        {
-          type: "paidServiceOne",
-          service: servicePackage.paidServiceOne,
-          eligible: true,
-          description: "Regular Paid Service",
-        },
-        {
-          type: "paidServiceTwo",
-          service: servicePackage.paidServiceTwo,
-          eligible: true,
-          description: "Comprehensive Service",
-        }
-      );
-
-      if (servicePackage.paidServiceThree) {
-        availableServices.push({
-          type: "paidServiceThree",
-          service: servicePackage.paidServiceThree,
-          eligible: true,
-          description: "Premium Service",
-        });
-      }
-    }
-
-    // Additional services (always available)
-    servicePackage.additionalServices.forEach((service, index) => {
-      availableServices.push({
-        type: `additionalService${index + 1}`,
-        service,
-        eligible: true,
-        description: "Additional Service",
-      });
     });
+
+    if (!vehicle) {
+      res.status(404);
+      throw new Error("Vehicle not found or doesn't belong to customer");
+    }
+
+    // Check if service is already assigned to this vehicle
+    const existingService = vehicle.activeValueAddedServices.find(
+      (service) => service.serviceId.toString() === id
+    );
+
+    if (existingService && existingService.isActive) {
+      res.status(400);
+      throw new Error("Service already assigned to this vehicle");
+    }
+
+    // Assign service to vehicle
+    const expiryDate = new Date();
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year validity
+
+    vehicle.activeValueAddedServices.push({
+      serviceId: new mongoose.Types.ObjectId(id),
+      activatedDate: new Date(),
+      expiryDate,
+      purchasePrice: purchasePrice || serviceAddon.serviceName.cost,
+      coverageYears: 1,
+      isActive: true,
+      activeBadges: [serviceAddon.serviceName.name],
+    });
+
+    await vehicle.save();
+
+    logger.info(
+      `Service ${serviceAddon.serviceName.name} assigned to customer ${
+        customer.phoneNumber
+      } for vehicle ${vehicle.numberPlate || vehicle._id}`
+    );
 
     res.status(200).json({
       success: true,
+      message: "Service assigned to customer successfully",
       data: {
+        customer: {
+          id: customer._id,
+          phone: customer.phoneNumber,
+        },
         vehicle: {
-          _id: customerVehicle._id,
-          modelNameName: customerVehicle.modelNameName,
-          numberPlate: customerVehicle.numberPlate,
-          serviceHistory: customerVehicle.serviceStatus.serviceHistory,
-          currentKilometers: customerVehicle.serviceStatus.kilometers,
+          id: vehicle._id,
+          numberPlate: vehicle.numberPlate,
         },
-        servicePackage: {
-          _id: servicePackage._id,
-          modelName: servicePackage.modelName,
-          validFrom: servicePackage.validFrom,
-          validUntil: servicePackage.validUntil,
+        service: {
+          id: serviceAddon._id,
+          name: serviceAddon.serviceName.name,
+          expiryDate,
         },
-        availableServices,
       },
     });
   }

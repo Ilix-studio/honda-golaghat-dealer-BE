@@ -11,14 +11,14 @@ import {
   getBookingStats,
   checkTimeSlotAvailability,
 } from "../../controllers/CustomerController/serviceBooking.controller";
+import { protectCustomer } from "../../middleware/customerMiddleware";
 
 const router = express.Router();
 
-// Public routes
-router.post("/", createServiceBooking); // by auth customer
-router.get("/availability", checkTimeSlotAvailability);
-router.get("/:id", getServiceBookingById); // Can be accessed with booking ID
-router.delete("/:id/cancel", cancelServiceBooking); // Can cancel with booking ID + email
+router.post("/", protectCustomer, createServiceBooking); // by auth customer
+router.get("/availability", protectCustomer, checkTimeSlotAvailability);
+router.get("/:id", protectCustomer, getServiceBookingById); // Can be accessed with booking ID
+router.delete("/:id/cancel", protectCustomer, cancelServiceBooking); // Can cancel with booking ID + email
 
 // Protected routes - Admin only
 router.get(
