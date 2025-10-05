@@ -11,7 +11,6 @@ import bikeImages from "./routes/BikeSystemRoutes/bikeImages.routes";
 import branchRoutes from "./routes/branches";
 import staffRoutes from "./routes/staff";
 
-import configRoutes from "./routes/config";
 import cloudinaryRoutes from "./routes/cloudinary";
 import getApprovedRoutes from "./routes/customerRoutes/getapproved";
 //new
@@ -79,20 +78,17 @@ app.use("/api/bikes", bikes);
 app.use("/api/bike-images", bikeImages);
 
 app.use("/api/staff", staffRoutes);
-
-app.use("/api/config", configRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
 
-//partOne
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
 app.use("/api/service-bookings", serviceBookingRoutes);
-//partTwo
 app.use("/api/value-added-services", valueAddedServicesRoutes);
 app.use("/api/service-packages", servicePackageRoutes);
-//update
-app.use("/api/customer-vehicles", vehicleInfoRoutes);
 app.use("/api/stock-concept", stockConceptRoutes);
+app.use("/api/customer-vehicles", vehicleInfoRoutes);
+
+//
 app.use("/api/visitor", visitorRoutes);
 
 // Global error handling middleware
