@@ -1,0 +1,34 @@
+import express from "express";
+import {
+  protectAdminOrCustomer,
+  protectCustomer,
+} from "../../middleware/customerMiddleware";
+import { authorize, protect } from "../../middleware/authmiddleware";
+import {
+  getCustomerProfile,
+  createProfile,
+  updateCustomerProfile,
+  getAllCustomers,
+  getCustomerById,
+} from "../../controllers/CustomerController/profile.controller";
+
+const router = express.Router();
+
+// ===== CUSTOMER ROUTES (Customer authentication required) =====
+router.post("/create", protectCustomer, createProfile);
+router.get("/get", protectCustomer, getCustomerProfile); // For dashboard
+router.patch("/update", protectCustomer, updateCustomerProfile); //UpdateRequest
+
+// Customer can access their own data
+router.get("/:customerId", protectAdminOrCustomer, getCustomerById);
+
+// ===== ADMIN ROUTES (Admin authentication required) =====
+router.get(
+  "/",
+  protect,
+  authorize("Super-Admin", "Branch-Admin"),
+  getAllCustomers
+);
+router.delete("/:customerId", protect, authorize("Super-Admin"));
+
+export default router;

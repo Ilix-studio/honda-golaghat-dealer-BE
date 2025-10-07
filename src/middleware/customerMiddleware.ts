@@ -1,16 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import asyncHandler from "express-async-handler";
-import CustomerModel, {
-  ICustomer,
-} from "../models/CustomerSystem/CustomerModel";
+
 import ErrorResponse from "../utils/errorResponse";
 
 import admin from "firebase-admin";
 import {
   BaseCustomerModel,
   IBaseCustomer,
-} from "../models/CustomerSystem/BaseCustomer/BaseCustomer";
-import { CustomerProfileModel } from "../models/CustomerSystem/BaseCustomer/CustomerProfile";
+} from "../models/CustomerSystem/BaseCustomer";
+import { CustomerProfileModel } from "../models/CustomerSystem/CustomerProfile";
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {

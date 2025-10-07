@@ -11,18 +11,18 @@ import bikeImages from "./routes/BikeSystemRoutes/bikeImages.routes";
 import branchRoutes from "./routes/branches";
 import staffRoutes from "./routes/staff";
 
-import configRoutes from "./routes/config";
 import cloudinaryRoutes from "./routes/cloudinary";
-import getApprovedRoutes from "./routes/getapproved";
+import getApprovedRoutes from "./routes/customerRoutes/getapproved";
 //new
-import customerRoutes from "./routes/customer/customer";
-import customerProfile from "./routes/customer/customerProfile";
-import customerDashboardRoutes from "./routes/customer/customerDashboard";
-import serviceBookingRoutes from "./routes/serviceBooking";
-import servicePackageRoutes from "./routes/customer/servicePackage";
-import valueAddedServicesRoutes from "./routes/customer/VAS";
+import customerRoutes from "./routes/customerRoutes/customer";
+import customerProfile from "./routes/customerRoutes/customerProfile";
+
+import serviceBookingRoutes from "./routes/customerRoutes/serviceBooking";
+import servicePackageRoutes from "./routes/BikeSystemRoutes2/servicePackage";
+import valueAddedServicesRoutes from "./routes/BikeSystemRoutes2/VAS";
 import visitorRoutes from "./routes/visitorR";
-import vehicleInfoRoutes from "./routes/customer/vehicleInfo";
+import vehicleInfoRoutes from "./routes/BikeSystemRoutes2/CustomerVehicleRoutes";
+import stockConceptRoutes from "./routes/BikeSystemRoutes2/stockConcept";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -78,20 +78,18 @@ app.use("/api/bikes", bikes);
 app.use("/api/bike-images", bikeImages);
 
 app.use("/api/staff", staffRoutes);
-
-app.use("/api/config", configRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
-//update
-app.use("/api/service-packages", servicePackageRoutes);
-app.use("/api/visitor", visitorRoutes);
-//update
+
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
-app.use("/api/customer-vehicles", vehicleInfoRoutes);
-app.use("/api/customer-dashboard", customerDashboardRoutes);
-
-app.use("/api/value-added-services", valueAddedServicesRoutes);
 app.use("/api/service-bookings", serviceBookingRoutes);
+app.use("/api/value-added-services", valueAddedServicesRoutes);
+app.use("/api/service-packages", servicePackageRoutes);
+app.use("/api/stock-concept", stockConceptRoutes);
+app.use("/api/customer-vehicles", vehicleInfoRoutes);
+
+//
+app.use("/api/visitor", visitorRoutes);
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
