@@ -54,9 +54,10 @@ export const getMyVehicles = asyncHandler(
     const customerId = req.customer?._id;
 
     const vehicles = await CustomerVehicleModel.find({
-      customer: customerId,
+      customerPhoneNumber: customerId, // Changed from 'customer'
       isActive: true,
     })
+      .populate("stockConcept") // Add this to get stock details
       .populate("servicePackage.packageId")
       .populate("activeValueAddedServices.serviceId")
       .sort({ createdAt: -1 });
