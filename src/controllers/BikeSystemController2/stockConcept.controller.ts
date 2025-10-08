@@ -156,11 +156,6 @@ export const getAllStockItems = asyncHandler(
   }
 );
 
-/**
- * @desc    Get stock item by ID
- * @route   GET /api/stock-concept/:id
- * @access  Private (Super-Admin, Branch-Admin)
- */
 export const getStockItemById = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -170,12 +165,10 @@ export const getStockItemById = asyncHandler(
       throw new Error("Invalid stock item ID");
     }
 
-    const stockItem = await StockConceptModel.findById(id)
-      .populate("stockStatus.branchId", "branchName address phone")
-      .populate("stockStatus.updatedBy", "name email")
-      .populate("salesInfo.soldTo", "phoneNumber")
-      .populate("salesInfo.salesPerson", "name email")
-      .populate("salesInfo.customerVehicleId");
+    const stockItem = await StockConceptModel.findById(id).populate(
+      "stockStatus.branchId",
+      "branchName address phone"
+    );
 
     if (!stockItem) {
       res.status(404);
