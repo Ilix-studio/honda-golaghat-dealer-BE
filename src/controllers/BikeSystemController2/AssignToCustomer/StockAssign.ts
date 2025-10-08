@@ -36,7 +36,7 @@ export const assignToCustomer = asyncHandler(
     if (!phoneNumber || !salePrice || !invoiceNumber) {
       res.status(400);
       throw new Error(
-        "Please provide customer phone number, sale price, sales person, and invoice number"
+        "Please provide customer phone number, sale price, and invoice number"
       );
     }
 
@@ -110,6 +110,16 @@ export const assignToCustomer = asyncHandler(
     }
 
     // Update stock item with sales information
+    stockItem.salesInfo = {
+      soldTo: new mongoose.Types.ObjectId(customer._id),
+      soldDate: new Date(),
+      salePrice,
+
+      invoiceNumber,
+      paymentStatus,
+      customerVehicleId: new mongoose.Types.ObjectId(customerVehicle._id),
+    };
+
     stockItem.stockStatus.status = "Sold";
     stockItem.stockStatus.location = "Customer";
     stockItem.stockStatus.lastUpdated = new Date();
