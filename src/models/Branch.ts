@@ -13,6 +13,7 @@ export interface IBranch extends Document {
   phone: string;
   email: string;
   hours: HoursType;
+  mapUrl?: string; // Optional field
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +65,10 @@ const BranchSchema = new Schema<IBranch>(
     hours: {
       type: HoursSchema,
       required: [true, "Please add branch hours"],
+    },
+    mapUrl: {
+      type: String,
+      required: false,
     },
   },
   {

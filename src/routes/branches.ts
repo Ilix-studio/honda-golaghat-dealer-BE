@@ -3,6 +3,7 @@ import express from "express";
 import { authorize, protect } from "../middleware/authmiddleware";
 import {
   addBranch,
+  addBranchwithinfo,
   deleteBranch,
   getBranchById,
   getBranches,
@@ -18,7 +19,8 @@ router.get("/:id", getBranchById);
 
 // Protected routes - Super-Admin only
 router.post("/", protect, authorize("Super-Admin"), addBranch);
-router.put("/:id", protect, authorize("Super-Admin"), updateBranch);
+router.post("/:id", protect, authorize("Super-Admin"), addBranchwithinfo);
+router.patch("/:id", protect, authorize("Super-Admin"), updateBranch);
 router.delete("/:id", protect, authorize("Super-Admin"), deleteBranch);
 
 export default router;
