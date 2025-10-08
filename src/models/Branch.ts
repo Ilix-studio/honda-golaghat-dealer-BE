@@ -1,10 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export interface StaffMember {
-  name: string;
-  position: string;
-}
-
 export interface HoursType {
   weekdays: string;
   saturday: string;
@@ -18,21 +13,9 @@ export interface IBranch extends Document {
   phone: string;
   email: string;
   hours: HoursType;
-  staff: StaffMember[];
   createdAt: Date;
   updatedAt: Date;
 }
-
-const StaffSchema = new Schema<StaffMember>({
-  name: {
-    type: String,
-    required: [true, "Please add staff member name"],
-  },
-  position: {
-    type: String,
-    required: [true, "Please add staff member position"],
-  },
-});
 
 const HoursSchema = new Schema<HoursType>({
   weekdays: {
@@ -82,7 +65,6 @@ const BranchSchema = new Schema<IBranch>(
       type: HoursSchema,
       required: [true, "Please add branch hours"],
     },
-    staff: [StaffSchema],
   },
   {
     timestamps: true,

@@ -360,10 +360,10 @@ serviceBookingSchema.set("toJSON", { virtuals: true });
 serviceBookingSchema.set("toObject", { virtuals: true });
 
 // Indexes
-serviceBookingSchema.index({ customer: 1, status: 1 });
+
 serviceBookingSchema.index({ vehicle: 1, status: 1 });
 serviceBookingSchema.index({ appointmentDate: 1 });
-serviceBookingSchema.index({ bookingId: 1 }, { unique: true });
+
 serviceBookingSchema.index({
   branchName: 1,
   appointmentDate: 1,

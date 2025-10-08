@@ -82,7 +82,7 @@ const feedbackSchema = new Schema<IFeedback>(
 );
 
 // Indexes for better query performance
-feedbackSchema.index({ customer: 1, createdAt: -1 });
+
 feedbackSchema.index({ vehicle: 1 });
 feedbackSchema.index({ status: 1 });
 feedbackSchema.index({ rating: 1 });

@@ -96,7 +96,7 @@ const customerProfileSchema = new Schema<ICustomerProfile>(
 );
 
 // Indexes
-customerProfileSchema.index({ customer: 1 });
+
 customerProfileSchema.index({ district: 1, state: 1 });
 customerProfileSchema.index({ firstName: 1, lastName: 1 });
 

@@ -180,8 +180,6 @@ const stockConceptSchema = new Schema<IStockConcept>(
 );
 
 // Indexes
-stockConceptSchema.index({ "engineDetails.engineNumber": 1 });
-stockConceptSchema.index({ "engineDetails.chassisNumber": 1 });
 stockConceptSchema.index({ "salesInfo.soldTo": 1 });
 stockConceptSchema.index({ "stockStatus.status": 1 });
 
