@@ -1,11 +1,11 @@
 import express from "express";
 import { authorize, protect } from "../../middleware/authmiddleware";
 import {
-  assignToCustomer,
   createStockItem,
   getAllStockItems,
   getStockItemById,
 } from "../../controllers/BikeSystemController2/stockConcept.controller";
+import { assignToCustomer } from "../../controllers/BikeSystemController2/AssignToCustomer/StockAssign";
 
 const router = express.Router();
 

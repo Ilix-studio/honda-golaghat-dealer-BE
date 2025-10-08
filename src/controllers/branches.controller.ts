@@ -95,36 +95,6 @@ export const addBranch = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-// @desc    Add branch with detailed information (using provided ID)
-// @route   POST /api/v1/branches/:id
-// @access  Private (Super-Admin)
-export const addBranchwithinfo = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { mapUrl } = req.body;
-
-    // Check if branch with ID already exists
-    const existingBranch = await Branch.findOne({ id: req.params.id });
-    if (existingBranch) {
-      res.status(400);
-      throw new Error("Hours must include weekdays, saturday, and sunday");
-    }
-
-    // Create branch with provided ID from URL parameter
-    const branch = await Branch.create({
-      id: req.params.id,
-      mapUrl,
-    });
-
-    logger.info(`New MapUrl added: ${mapUrl} with ID: ${req.params.id}`);
-
-    res.status(201).json({
-      success: true,
-      data: branch,
-      message: "Map URL added successfully",
-    });
-  }
-);
-
 /**
  * @desc    Get all branches
  * @route   GET /api/branch
