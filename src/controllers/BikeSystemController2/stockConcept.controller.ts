@@ -65,19 +65,6 @@ export const createStockItem = asyncHandler(
       throw new Error("Bike model not found");
     }
 
-    // Check for duplicate engine/chassis numbers
-    const existingStock = await StockConceptModel.findOne({
-      $or: [
-        { "engineDetails.engineNumber": engineNumber.toUpperCase() },
-        { "engineDetails.chassisNumber": chassisNumber.toUpperCase() },
-      ],
-    });
-
-    if (existingStock) {
-      res.status(400);
-      throw new Error("Engine number or chassis number already exists");
-    }
-
     // Generate stock ID
     const stockCount = await StockConceptModel.countDocuments();
     const stockId = `STK-${Date.now()}-${String(stockCount + 1).padStart(

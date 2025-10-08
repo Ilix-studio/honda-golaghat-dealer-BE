@@ -286,9 +286,7 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
 );
 
 // Indexes
-customerVehicleSchema.index({ customer: 1, isActive: 1 });
-customerVehicleSchema.index({ stockConcept: 1 });
-customerVehicleSchema.index({ numberPlate: 1 }, { sparse: true, unique: true });
+
 customerVehicleSchema.index({ "servicePackage.packageId": 1 });
 customerVehicleSchema.index({ "activeValueAddedServices.serviceId": 1 });
 

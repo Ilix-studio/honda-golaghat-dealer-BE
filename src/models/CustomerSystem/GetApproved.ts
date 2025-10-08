@@ -383,8 +383,7 @@ GetApprovedSchema.pre("save", function (next) {
 });
 
 // Create indexes for better performance
-GetApprovedSchema.index({ email: 1 });
-GetApprovedSchema.index({ applicationId: 1 });
+
 GetApprovedSchema.index({ status: 1 });
 GetApprovedSchema.index({ enquiryType: 1 });
 GetApprovedSchema.index({ "bikeEnquiry.bikeId": 1 });

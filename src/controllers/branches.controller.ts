@@ -84,7 +84,6 @@ export const addBranch = asyncHandler(async (req: Request, res: Response) => {
     phone,
     email,
     hours: hours || defaultHours,
-    staff: staff || [],
   });
 
   logger.info(`New branch added: ${branchName} with ID: ${uniqueId}`);

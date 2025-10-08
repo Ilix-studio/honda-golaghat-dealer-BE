@@ -9,7 +9,6 @@ import bikes from "./routes/BikeSystemRoutes/bikes.routes";
 import bikeImages from "./routes/BikeSystemRoutes/bikeImages.routes";
 
 import branchRoutes from "./routes/branches";
-import staffRoutes from "./routes/staff";
 
 import cloudinaryRoutes from "./routes/cloudinary";
 import getApprovedRoutes from "./routes/customerRoutes/getapproved";
@@ -77,7 +76,6 @@ app.use("/api/branch", branchRoutes);
 app.use("/api/bikes", bikes);
 app.use("/api/bike-images", bikeImages);
 
-app.use("/api/staff", staffRoutes);
 app.use("/api/getapproved", getApprovedRoutes);
 
 app.use("/api/customer", customerRoutes);

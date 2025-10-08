@@ -4,16 +4,11 @@ import {
   logoutSuperAdmin,
   createBranchM,
   deleteBranchM,
-  createStaffM,
   getAllBranchManagers,
 } from "../controllers/auth.controller";
 import seedAdmin from "../AdminPrivilege/seeder";
 import { authorize, protect } from "../middleware/authmiddleware";
-import {
-  getStaffByBranch,
-  removeStaffMember,
-  updateStaffMember,
-} from "../controllers/staffM.controller";
+
 import { loginBranchM, logoutBranchM } from "../controllers/branchM.controller";
 
 const router = express.Router();
@@ -62,35 +57,6 @@ router.delete(
   protect,
   authorize("Super-Admin"),
   deleteBranchM
-);
-
-// ===== STAFF MANAGEMENT ROUTES (Both roles can access) =====
-router.post(
-  "/create-staffM",
-  protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  createStaffM
-);
-
-router.get(
-  "/staff/:branchId",
-  protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  getStaffByBranch
-);
-
-router.put(
-  "/staff/:branchId/:staffIndex",
-  protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  updateStaffMember
-);
-
-router.delete(
-  "/staff/:branchId/:staffIndex",
-  protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  removeStaffMember
 );
 
 export default router;

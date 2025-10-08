@@ -36,9 +36,8 @@ const baseCustomerSchema = new Schema<IBaseCustomer>(
 );
 
 // Indexes
-baseCustomerSchema.index({ phoneNumber: 1 });
+
 baseCustomerSchema.index({ isVerified: 1 });
-baseCustomerSchema.index({ firebaseUid: 1 });
 
 export const BaseCustomerModel = mongoose.model<IBaseCustomer>(
   "BaseCustomer",
