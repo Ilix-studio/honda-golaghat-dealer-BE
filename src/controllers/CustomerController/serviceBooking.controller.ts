@@ -91,8 +91,14 @@ export const createServiceBooking = asyncHandler(
       );
     }
 
+    const bookingId = `BK${Date.now()}${Math.random()
+      .toString(36)
+      .substr(2, 5)
+      .toUpperCase()}`;
+
     // Create the service booking
     const serviceBooking = await ServiceBooking.create({
+      bookingId,
       motorcyclemodelName,
       vehicleAge,
       mileage: parseInt(mileage),
