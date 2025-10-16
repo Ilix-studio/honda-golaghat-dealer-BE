@@ -14,6 +14,9 @@ export interface ICustomerProfile extends Document {
   policeStation: string;
   district: string;
   state: string;
+  bloodGroup: string;
+  familyNumber1: number;
+  familyNumber2:number;
   profileCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -85,6 +88,24 @@ const customerProfileSchema = new Schema<ICustomerProfile>(
       trim: true,
       maxlength: [50, "State name cannot exceed 50 characters"],
     },
+     bloodGroup: {
+      type: String,
+      required: [true, "Blood Group ios required"],
+      trim: true,
+      maxlength: [4, "Max 4 character "]
+     },
+     familyNumber1: {
+      type: Number,
+      unique: true,
+      match: [/^[6-9]\d{9}$/, "Please enter a valid 10-digit phone number"],
+      trim: true,
+     },
+     familyNumber2:{
+      type: Number,
+      unique: true,
+      match: [/^[6-9]\d{9}$/, "Please enter a valid 10-digit phone number"],
+      trim: true,
+     },
     profileCompleted: {
       type: Boolean,
       default: false,
