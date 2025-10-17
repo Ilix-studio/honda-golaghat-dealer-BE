@@ -15,7 +15,7 @@ export interface ICustomerVehicle extends Document {
   isFinance: boolean;
   color?: string;
   purchaseDate?: Date;
-  customerPhoneNumber: mongoose.Types.ObjectId; // Reference to BaseCustomer
+ customer: mongoose.Types.ObjectId // Reference to BaseCustomer
   numberPlate?: string;
   registeredOwnerName?: string;
   motorcyclePhoto?: string;
@@ -126,7 +126,7 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
       },
     },
 
-    customerPhoneNumber: {
+    customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BaseCustomer",
       required: [true, "Customer reference is required"],
