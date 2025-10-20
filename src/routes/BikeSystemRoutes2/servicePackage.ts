@@ -36,7 +36,7 @@ router.get(
 
 // Assign service to customer
 router.post(
-  "/:id/assign",
+  "/:id/activate",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   activateServiceToCustomer
