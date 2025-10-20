@@ -27,7 +27,7 @@ router.get(
 
 // Assign stock item to customer
 router.post(
-  "/:id/assign",
+  "/:id/activate",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   activateToCustomer
