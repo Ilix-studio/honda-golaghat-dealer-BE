@@ -97,7 +97,7 @@ export const getVehicleById = asyncHandler(
     // Check if customer is accessing their own vehicle
     if (
       req.customer &&
-      vehicle.customerPhoneNumber._id.toString() !== req.customer._id.toString()
+      vehicle.customer._id.toString() !== req.customer._id.toString()
     ) {
       res.status(403);
       throw new Error("Access denied");
@@ -427,43 +427,6 @@ export const getVehicleStats = asyncHandler(
           }),
           {}
         ),
-      },
-    });
-  }
-);
-
-/**
- * @desc    Add VAS to vehicle
- * @route   POST /api/customer-vehicles/:id/add-vas
- * @access  Private (Admin)
- */
-export const addVASToVehicle = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { serviceId, purchasePrice, coverageYears, selectedBadges } =
-      req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400);
-      throw new Error("Invalid vehicle ID");
-    }
-
-    const vehicle = await CustomerVehicleModel.findById(id);
-    if (!vehicle) {
-      res.status(404);
-      throw new Error("Vehicle not found");
-    }
-
-    const expiryDate = new Date();
-    expiryDate.setFullYear(expiryDate.getFullYear() + coverageYears);
-
-    await vehicle.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Value added service activated successfully",
-      data: {
-        vehicleId: vehicle._id,
       },
     });
   }

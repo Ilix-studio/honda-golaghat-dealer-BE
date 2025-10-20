@@ -1,6 +1,6 @@
 // src/routes/getapproved.ts
 import express from "express";
-import { authorize, protect } from "../../middleware/authmiddleware";
+import { authorize, protect } from "../middleware/authmiddleware";
 
 import {
   checkApplicationStatus,
@@ -16,7 +16,7 @@ import {
   updateBikeEnquiry,
   // getBikeRecommendations,
   getEnquiryStats,
-} from "../../controllers/CustomerController/getapproved.controller";
+} from "../controllers/getapproved.controller";
 
 const router = express.Router();
 // "/api/getapproved"

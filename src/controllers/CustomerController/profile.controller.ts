@@ -24,6 +24,9 @@ export const createProfile = asyncHandler(
       policeStation,
       district,
       state,
+      bloodGroup,
+      familyNumber1,
+      familyNumber2,
     } = req.body;
 
     if (!req.customer) {
@@ -53,6 +56,9 @@ export const createProfile = asyncHandler(
       policeStation,
       district,
       state,
+      bloodGroup,
+      familyNumber1,
+      familyNumber2,
       profileCompleted: true,
     });
 
@@ -121,6 +127,9 @@ export const updateCustomerProfile = asyncHandler(
       "policeStation",
       "district",
       "state",
+      "bloodGroup",
+      "familyNumber1",
+      "familyNumber2",
     ];
 
     const updates: Partial<ICustomerProfile> = {};

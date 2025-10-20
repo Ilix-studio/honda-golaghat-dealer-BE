@@ -3,13 +3,13 @@
     "target": "es2018",
     "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "/Users/ilish_acc/Developer/honda_site/server3",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "firebase.ts"],
   "exclude": ["node_modules", "**/*.test.ts"]
 }

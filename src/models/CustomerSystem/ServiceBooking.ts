@@ -10,7 +10,7 @@ export interface IServiceBooking extends Document {
   rtoCode?: string;
 
   // References (for authenticated users)
-  customer?: mongoose.Types.ObjectId; // Reference to BaseCustomer
+  customer: mongoose.Types.ObjectId; // Reference to BaseCustomer
   vehicle?: mongoose.Types.ObjectId; // Reference to CustomerVehicle
   servicePackage?: mongoose.Types.ObjectId; // Reference to ServiceAddons
 
@@ -102,10 +102,7 @@ const serviceBookingSchema = new Schema<IServiceBooking>(
     },
 
     // References (for authenticated users)
-    customer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "BaseCustomer",
-    },
+    customer: { type: Schema.Types.ObjectId, ref: "Customer", required: true },
     vehicle: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "CustomerVehicle",

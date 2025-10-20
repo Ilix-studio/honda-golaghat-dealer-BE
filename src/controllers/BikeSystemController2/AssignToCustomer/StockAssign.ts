@@ -11,11 +11,11 @@ import logger from "../../../utils/logger";
  * @route   PATCH /api/stock-concept/:id/assign
  * @access  Private (Super-Admin, Branch-Admin)
  */
-export const assignToCustomer = asyncHandler(
+export const activateToCustomer = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const {
-      phoneNumber,
+      customerId,
       salePrice,
       invoiceNumber,
       paymentStatus = "Pending",
@@ -25,6 +25,9 @@ export const assignToCustomer = asyncHandler(
       insurance = false,
       isPaid = false,
       isFinance = false,
+      rtoName, // Added parameter for RTO info
+      rtoAddress, // Added parameter for RTO info
+      state = "AS", // Default state
     } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -33,10 +36,10 @@ export const assignToCustomer = asyncHandler(
     }
 
     // Validate required fields
-    if (!phoneNumber || !salePrice || !invoiceNumber) {
+    if (!customerId || !salePrice || !invoiceNumber) {
       res.status(400);
       throw new Error(
-        "Please provide customer phone number, sale price, and invoice number"
+        "Please provide customer ID, sale price, and invoice number"
       );
     }
 
@@ -52,11 +55,28 @@ export const assignToCustomer = asyncHandler(
       throw new Error("Stock item is not available for sale");
     }
 
-    // Validate customer exists by phone number
-    const customer = await BaseCustomerModel.findOne({ phoneNumber });
+    // Validate customer exists by ID
+    if (!mongoose.Types.ObjectId.isValid(customerId)) {
+      res.status(400);
+      throw new Error("Invalid customer ID");
+    }
+
+    const customer = await BaseCustomerModel.findById(customerId);
     if (!customer) {
       res.status(404);
-      throw new Error("Customer not found with this phone number");
+      throw new Error("Customer not found");
+    }
+
+    // Create RTO info object if numberPlate is provided
+    let rtoInfo;
+    if (numberPlate) {
+      const rtoCode = numberPlate.substring(0, 4).toUpperCase();
+      rtoInfo = {
+        rtoCode,
+        rtoName: rtoName || `RTO ${rtoCode}`, // Use provided name or generate one
+        rtoAddress: rtoAddress || `RTO Office, ${state}`, // Use provided address or generate one
+        state: state,
+      };
     }
 
     // Create customer vehicle record
@@ -71,28 +91,9 @@ export const assignToCustomer = asyncHandler(
       isPaid,
       isFinance,
       color: stockItem.color,
-      customerPhoneNumber: customer._id,
+      customer: customer._id, // Changed from customerPhoneNumber: customer._id
       registeredOwnerName: registeredOwnerName || undefined,
-      rtoInfo: numberPlate
-        ? {
-            rtoCode: numberPlate.substring(0, 4).toUpperCase(),
-            rtoName: "RTO Office",
-            rtoAddress: "RTO Address",
-            state: "AS",
-          }
-        : undefined,
-      servicePackage: {
-        packageId: new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
-        currentServiceLevel: 1,
-        nextServiceType: "firstService",
-        completedServices: [],
-      },
-      serviceStatus: {
-        serviceType: "Regular",
-        kilometers: 0,
-        serviceHistory: 0,
-      },
-      activeValueAddedServices: [],
+      rtoInfo: rtoInfo,
     });
 
     // Save previous owner to sales history if this is a resale
@@ -114,7 +115,6 @@ export const assignToCustomer = asyncHandler(
       soldTo: new mongoose.Types.ObjectId(customer._id),
       soldDate: new Date(),
       salePrice,
-
       invoiceNumber,
       paymentStatus,
       customerVehicleId: new mongoose.Types.ObjectId(customerVehicle._id),
@@ -131,10 +131,11 @@ export const assignToCustomer = asyncHandler(
       { path: "stockStatus.branchId", select: "branchName" },
     ]);
 
+    // Safely access req.user._id with optional chaining
+    const userId = req.user?._id || "system";
+
     logger.info(
-      `Stock item ${stockItem.stockId} assigned to customer ${
-        customer.phoneNumber
-      } by ${req.user!._id}`
+      `Stock item ${stockItem.stockId} assigned to customer ${customer.phoneNumber} by ${userId}`
     );
 
     res.status(200).json({

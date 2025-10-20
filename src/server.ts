@@ -7,11 +7,11 @@ import { errorHandler, routeNotFound } from "./middleware/errorMiddleware";
 import auth from "./routes/auth";
 import bikes from "./routes/BikeSystemRoutes/bikes.routes";
 import bikeImages from "./routes/BikeSystemRoutes/bikeImages.routes";
-
+import enquiryRoutes from "./routes/enquiryForm";
 import branchRoutes from "./routes/branches";
-
 import cloudinaryRoutes from "./routes/cloudinary";
-import getApprovedRoutes from "./routes/customerRoutes/getapproved";
+import getApprovedRoutes from "./routes/getapproved";
+import visitorRoutes from "./routes/visitorR";
 //new
 import customerRoutes from "./routes/customerRoutes/customer";
 import customerProfile from "./routes/customerRoutes/customerProfile";
@@ -19,7 +19,6 @@ import customerProfile from "./routes/customerRoutes/customerProfile";
 import serviceBookingRoutes from "./routes/customerRoutes/serviceBooking";
 import servicePackageRoutes from "./routes/BikeSystemRoutes2/servicePackage";
 import valueAddedServicesRoutes from "./routes/BikeSystemRoutes2/VAS";
-import visitorRoutes from "./routes/visitorR";
 import vehicleInfoRoutes from "./routes/BikeSystemRoutes2/CustomerVehicleRoutes";
 import stockConceptRoutes from "./routes/BikeSystemRoutes2/stockConcept";
 
@@ -72,6 +71,7 @@ app.use("/api", apiLimiter);
 app.use("/api/adminLogin", auth);
 app.use("/api/cloudinary", cloudinaryRoutes);
 app.use("/api/branch", branchRoutes);
+app.use("/api/enquiry-form", enquiryRoutes);
 //new
 app.use("/api/bikes", bikes);
 app.use("/api/bike-images", bikeImages);
@@ -81,11 +81,12 @@ app.use("/api/getapproved", getApprovedRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
 app.use("/api/service-bookings", serviceBookingRoutes);
+//
 app.use("/api/value-added-services", valueAddedServicesRoutes);
 app.use("/api/service-packages", servicePackageRoutes);
 app.use("/api/stock-concept", stockConceptRoutes);
+//
 app.use("/api/customer-vehicles", vehicleInfoRoutes);
-
 //
 app.use("/api/visitor", visitorRoutes);
 

@@ -5,7 +5,7 @@ import {
   getAllStockItems,
   getStockItemById,
 } from "../../controllers/BikeSystemController2/stockConcept.controller";
-import { assignToCustomer } from "../../controllers/BikeSystemController2/AssignToCustomer/StockAssign";
+import { activateToCustomer } from "../../controllers/BikeSystemController2/AssignToCustomer/StockAssign";
 
 const router = express.Router();
 
@@ -26,11 +26,11 @@ router.get(
 );
 
 // Assign stock item to customer
-router.patch(
+router.post(
   "/:id/assign",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  assignToCustomer
+  activateToCustomer
 );
 
 // Get stock item by ID

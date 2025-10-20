@@ -1,11 +1,11 @@
 import express from "express";
 import { authorize, protect } from "../../middleware/authmiddleware";
 import {
-  assignServiceToCustomer,
   createServiceAddon,
   getServiceAddonById,
   getServiceAddons,
 } from "../../controllers/BikeSystemController2/servicePackage.controller";
+import { activateServiceToCustomer } from "../../controllers/BikeSystemController2/AssignToCustomer/serviceAssign";
 
 const router = express.Router();
 // "/api/service-addons"
@@ -39,7 +39,7 @@ router.post(
   "/:id/assign",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
-  assignServiceToCustomer
+  activateServiceToCustomer
 );
 
 export default router;
