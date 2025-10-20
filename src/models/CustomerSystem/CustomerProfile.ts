@@ -2,9 +2,21 @@
 import mongoose, { Document, Schema } from "mongoose";
 import { IBaseCustomer } from "./BaseCustomer";
 
+// Blood group enum
+export enum BloodGroup {
+  A_POSITIVE = "A+",
+  A_NEGATIVE = "A-",
+  B_POSITIVE = "B+",
+  B_NEGATIVE = "B-",
+  AB_POSITIVE = "AB+",
+  AB_NEGATIVE = "AB-",
+  O_POSITIVE = "O+",
+  O_NEGATIVE = "O-",
+}
+
 export interface ICustomerProfile extends Document {
   _id: string;
-  customer: mongoose.Types.ObjectId; // Reference to BaseCustomer
+  customer: mongoose.Types.ObjectId;
   firstName: string;
   middleName?: string;
   lastName: string;
@@ -14,9 +26,9 @@ export interface ICustomerProfile extends Document {
   policeStation: string;
   district: string;
   state: string;
-  bloodGroup: string;
+  bloodGroup: BloodGroup;
   familyNumber1: number;
-  familyNumber2:number;
+  familyNumber2: number;
   profileCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -28,7 +40,7 @@ const customerProfileSchema = new Schema<ICustomerProfile>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "BaseCustomer",
       required: [true, "Customer reference is required"],
-      unique: true, // One profile per customer
+      unique: true,
     },
     firstName: {
       type: String,
@@ -88,24 +100,36 @@ const customerProfileSchema = new Schema<ICustomerProfile>(
       trim: true,
       maxlength: [50, "State name cannot exceed 50 characters"],
     },
-     bloodGroup: {
+    bloodGroup: {
       type: String,
-      required: [true, "Blood Group ios required"],
-      trim: true,
-      maxlength: [4, "Max 4 character "]
-     },
-     familyNumber1: {
+      required: [true, "Blood group is required"],
+      enum: {
+        values: Object.values(BloodGroup),
+        message: "Blood group must be one of: A+, A-, B+, B-, AB+, AB-, O+, O-",
+      },
+    },
+    familyNumber1: {
       type: Number,
+      required: [true, "Family contact number 1 is required"],
+      validate: {
+        validator: function (v: number) {
+          return /^[6-9]\d{9}$/.test(v.toString());
+        },
+        message: "Please enter a valid 10-digit phone number starting with 6-9",
+      },
       unique: true,
-      match: [/^[6-9]\d{9}$/, "Please enter a valid 10-digit phone number"],
-      trim: true,
-     },
-     familyNumber2:{
+    },
+    familyNumber2: {
       type: Number,
+      required: [true, "Family contact number 2 is required"],
+      validate: {
+        validator: function (v: number) {
+          return /^[6-9]\d{9}$/.test(v.toString());
+        },
+        message: "Please enter a valid 10-digit phone number starting with 6-9",
+      },
       unique: true,
-      match: [/^[6-9]\d{9}$/, "Please enter a valid 10-digit phone number"],
-      trim: true,
-     },
+    },
     profileCompleted: {
       type: Boolean,
       default: false,
@@ -117,7 +141,6 @@ const customerProfileSchema = new Schema<ICustomerProfile>(
 );
 
 // Indexes
-
 customerProfileSchema.index({ district: 1, state: 1 });
 customerProfileSchema.index({ firstName: 1, lastName: 1 });
 
@@ -160,7 +183,6 @@ export const CustomerProfileModel = mongoose.model<ICustomerProfile>(
   customerProfileSchema
 );
 
-// models/Customer/index.ts - Combined interface for populated data
 export interface ICustomerWithProfile extends IBaseCustomer {
   profile?: ICustomerProfile;
   fullName?: string;
