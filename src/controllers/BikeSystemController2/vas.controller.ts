@@ -6,7 +6,6 @@ import {
   CustomerVehicleModel,
   ICustomerVehicle,
 } from "../../models/BikeSystemModel2/CustomerVehicleModel";
-import mongoose from "mongoose";
 
 /**
  * @desc    Create value added service
@@ -312,73 +311,6 @@ export const getServicesByType = asyncHandler(
 );
 
 /**
- * @desc    Activate service for customer (Admin action)
- * @route   POST /api/value-added-services/admin/activate
- * @access  Private (Admin)
- */
-export const activateCustomerService = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { customerId, vehicleId, serviceId, activeBadges, purchasePrice } =
-      req.body;
-    const adminId = req.user?._id;
-
-    const service = await ValueAddedServiceModel.findById(serviceId);
-    if (!service) {
-      res.status(404);
-      throw new Error("Service not found");
-    }
-
-    const vehicle = await CustomerVehicleModel.findOne({
-      _id: vehicleId,
-      customerPhoneNumber: customerId,
-    }).populate("customerPhoneNumber", "phoneNumber");
-
-    if (!vehicle) {
-      res.status(404);
-      throw new Error("Vehicle not found for customer");
-    }
-
-    // Calculate expiry date
-    const expiryDate = new Date();
-    expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
-
-    // Add VAS to vehicle's active services
-    const newVAS = {
-      serviceId: new mongoose.Types.ObjectId(service._id),
-      activatedDate: new Date(),
-      expiryDate,
-      purchasePrice: Number(purchasePrice) || 0,
-      coverageYears: service.coverageYears,
-      isActive: true,
-      activeBadges: activeBadges || [],
-    };
-
-    vehicle.activeValueAddedServices.push(newVAS);
-    await vehicle.save();
-
-    logger.info(
-      `Service ${service.serviceName} activated for customer ${
-        (vehicle.customerPhoneNumber as any)?.phoneNumber
-      } vehicle ${vehicle.numberPlate}`
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Service activated successfully",
-      data: {
-        customer: customerId,
-        customerPhone: (vehicle.customerPhoneNumber as any)?.phoneNumber,
-        vehicle: vehicle.numberPlate,
-        service: service.serviceName,
-        activeBadges: activeBadges || [],
-        expiryDate,
-        purchasePrice: purchasePrice || 0,
-      },
-    });
-  }
-);
-
-/**
  * @desc    Get customer active services
  * @route   GET /api/value-added-services/my-services
  * @access  Private (Customer)
@@ -403,7 +335,7 @@ export const getCustomerActiveServices = asyncHandler(
         _id: vehicle._id,
         modelName: vehicle.modelName,
         numberPlate: vehicle.numberPlate,
-        customerPhone: (vehicle.customerPhoneNumber as any)?.phoneNumber,
+        customer: customerId,
       },
       services: vehicle.activeValueAddedServices
         .filter((service) => service.isActive)
@@ -442,7 +374,7 @@ export const getCustomersWithActiveVAS = asyncHandler(
       isActive: true,
       "activeValueAddedServices.0": { $exists: true }, // Has at least one VAS
     })
-      .populate("customerPhoneNumber", "phoneNumber")
+      .populate("customer", "phoneNumber")
       .populate("activeValueAddedServices.serviceId", "serviceName serviceType")
       .sort({ updatedAt: -1 })
       .skip(skip)
@@ -455,8 +387,8 @@ export const getCustomersWithActiveVAS = asyncHandler(
 
     const customersWithVAS = vehicles.map((vehicle) => ({
       customer: {
-        _id: (vehicle.customerPhoneNumber as any)?._id,
-        phoneNumber: (vehicle.customerPhoneNumber as any)?.phoneNumber,
+        _id: (vehicle.customer as any)?._id,
+        phoneNumber: (vehicle.customer as any)?.phoneNumber,
       },
       vehicle: {
         _id: vehicle._id,

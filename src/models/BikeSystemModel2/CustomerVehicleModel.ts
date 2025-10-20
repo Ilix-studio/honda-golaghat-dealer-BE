@@ -15,7 +15,7 @@ export interface ICustomerVehicle extends Document {
   isFinance: boolean;
   color?: string;
   purchaseDate?: Date;
- customer: mongoose.Types.ObjectId // Reference to BaseCustomer
+  customer: mongoose.Types.ObjectId; // Reference to BaseCustomer
   numberPlate?: string;
   registeredOwnerName?: string;
   motorcyclePhoto?: string;
@@ -129,6 +129,7 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BaseCustomer",
+      unique: true,
       required: [true, "Customer reference is required"],
     },
 
@@ -188,7 +189,6 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
       packageId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "ServiceAddons",
-        required: [true, "Service package is required"],
       },
       activatedDate: {
         type: Date,
@@ -247,11 +247,7 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
           type: Date,
           required: [true, "Expiry date is required"],
         },
-        activatedBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "BaseCustomer",
-          required: [true, "Activated by admin is required"],
-        },
+
         purchasePrice: {
           type: Number,
           required: [true, "Purchase price is required"],

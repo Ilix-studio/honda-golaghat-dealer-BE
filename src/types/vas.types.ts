@@ -21,7 +21,7 @@ export interface IValueAddedService extends Document {
     | "Engine Health Assurance"
     | "Roadside Assistance";
   description: string;
-
+  customer: mongoose.Types.ObjectId;
   // Coverage Details
   coverageYears: number;
   maxEnrollmentPeriod: number; // months

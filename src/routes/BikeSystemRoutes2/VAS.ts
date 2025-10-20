@@ -1,6 +1,5 @@
 import express from "express";
 import {
-  activateCustomerService,
   createValueAddedService,
   getAllValueAddedServices,
   getValueAddedServiceById,
@@ -15,6 +14,7 @@ import {
 } from "../../controllers/BikeSystemController2/vas.controller";
 import { authorize, protect } from "../../middleware/authmiddleware";
 import { protectCustomer } from "../../middleware/customerMiddleware";
+import { activateCustomerService } from "../../controllers/BikeSystemController2/AssignToCustomer/vasAssign";
 
 const router = express.Router();
 // "/api/value-added-services"
@@ -72,7 +72,7 @@ router.patch(
 
 // Customer service activation
 router.post(
-  "/admin/activate",
+  "/:id/activate",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   activateCustomerService

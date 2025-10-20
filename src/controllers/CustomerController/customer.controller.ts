@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import logger from "../../utils/logger";
 import { BaseCustomerModel } from "../../models/CustomerSystem/BaseCustomer";
 import { CustomerProfileModel } from "../../models/CustomerSystem/CustomerProfile";
+import admin from "firebase-admin";
 
 /**
  * @desc    Save customer data after Firebase OTP verification
@@ -60,26 +61,39 @@ export const saveAuthData = asyncHandler(
     }
   }
 );
-
 /**
  * @desc    Customer login
  * @route   POST /api/customer/login
  * @access  Public
  */
 export const loginCustomer = asyncHandler(
-  async (req: Request, res: Response) => {
-    try {
-      const { idToken } = req.body;
+  async (req: Request, res: Response): Promise<void> => {
+    const { idToken } = req.body;
 
-      if (!idToken) {
+    if (!idToken) {
+      res.status(400);
+      throw new Error("ID token is required");
+    }
+
+    try {
+      // Verify Firebase token
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+      // Get phone number from verified token and normalize it
+      let phoneNumber = decodedToken.phone_number;
+
+      if (!phoneNumber) {
         res.status(400);
-        throw new Error("ID token is required");
+        throw new Error("Phone number not found in token");
       }
 
-      // Verify Firebase token and get phone number
-      // (Your Firebase verification logic here)
-      const phoneNumber = req.body.phoneNumber; // From verified token
+      // Normalize the phone number by removing the country code
+      // If phone number starts with +91, remove it
+      if (phoneNumber.startsWith("+91")) {
+        phoneNumber = phoneNumber.substring(3); // Remove +91 prefix
+      }
 
+      // Find customer in your database with the normalized phone number
       const customer = await BaseCustomerModel.findOne({ phoneNumber });
 
       if (!customer) {
@@ -110,10 +124,19 @@ export const loginCustomer = asyncHandler(
           token: idToken,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
-      res.status(401);
-      throw new Error("Invalid token or login failed");
+
+      if (error instanceof Error) {
+        // If the error is already set with a specific status, don't change it
+        if (!res.statusCode || res.statusCode === 200) {
+          res.status(401);
+        }
+        throw error;
+      } else {
+        res.status(500);
+        throw new Error("An unexpected error occurred during login");
+      }
     }
   }
 );
