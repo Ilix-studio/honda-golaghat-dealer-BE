@@ -181,3 +181,82 @@ export const getStockItemById = asyncHandler(
     });
   }
 );
+
+/**
+ * @desc    Get customer's vehicles (stock items sold to them)
+ * @route   GET /api/stock-concept/my-vehicles
+ * @access  Private (Customer)
+ */
+export const getMyVehicles = asyncHandler(
+  async (req: Request, res: Response) => {
+    const customerId = req.customer?._id;
+
+    if (!customerId) {
+      res.status(401);
+      throw new Error("Customer authentication required");
+    }
+
+    // Find all stock items sold to this customer
+    const vehicles = await StockConceptModel.find({
+      "salesInfo.soldTo": customerId,
+      "stockStatus.status": "Sold",
+      isActive: true,
+    })
+      .populate("stockStatus.branchId", "branchName address")
+      .populate("salesInfo.salesPerson", "name email")
+      .populate("salesInfo.customerVehicleId")
+      .sort({ "salesInfo.soldDate": -1 });
+
+    res.status(200).json({
+      success: true,
+      count: vehicles.length,
+      data: vehicles,
+    });
+  }
+);
+
+/**
+ * @desc    Get vehicle by ID (for customer dashboard)
+ * @route   GET /api/stock-concept/:id
+ * @access  Private (Customer/Admin)
+ */
+export const getVehicleById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400);
+      throw new Error("Invalid vehicle ID");
+    }
+
+    const vehicle = await StockConceptModel.findById(id)
+      .populate("stockStatus.branchId", "branchName address")
+      .populate("salesInfo.soldTo", "phoneNumber firstName lastName")
+      .populate("salesInfo.salesPerson", "name email")
+      .populate("salesInfo.customerVehicleId")
+      .populate("salesHistory.soldTo", "phoneNumber firstName lastName")
+      .populate("salesHistory.salesPerson", "name email");
+
+    if (!vehicle) {
+      res.status(404);
+      throw new Error("Vehicle not found");
+    }
+
+    // Check if customer is accessing their own vehicle
+    if (req.customer) {
+      const isOwner =
+        vehicle.salesInfo?.soldTo?._id?.toString() ===
+        req.customer._id.toString();
+
+      if (!isOwner) {
+        res.status(403);
+        throw new Error("Access denied: You can only view your own vehicles");
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: vehicle,
+    });
+  }
+);

@@ -79,7 +79,7 @@ router.post(
 );
 
 // ===== CUSTOMER ROUTES =====
-router.get("/eligible", protectCustomer, getCustomerEligibleServices);
+
 router.get("/my-services", protectCustomer, getCustomerActiveServices);
 router.post("/calculate-price", protectCustomer, calculateServicePrice);
 

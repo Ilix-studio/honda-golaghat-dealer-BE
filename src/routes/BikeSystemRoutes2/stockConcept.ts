@@ -3,12 +3,20 @@ import { authorize, protect } from "../../middleware/authmiddleware";
 import {
   createStockItem,
   getAllStockItems,
+  getMyVehicles,
   getStockItemById,
+  getVehicleById,
 } from "../../controllers/BikeSystemController2/stockConcept.controller";
 import { activateToCustomer } from "../../controllers/BikeSystemController2/AssignToCustomer/StockAssign";
+import {
+  protectAdminOrCustomer,
+  protectCustomer,
+} from "../../middleware/customerMiddleware";
 
 const router = express.Router();
 
+router.get("/my-vehicles", protectCustomer, getMyVehicles); // Customer-Dashboard
+router.get("/:id", protectAdminOrCustomer, getVehicleById); // Customer-Dashboard
 // Create new stock item
 router.post(
   "/",

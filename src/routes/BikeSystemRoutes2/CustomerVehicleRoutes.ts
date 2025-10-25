@@ -19,8 +19,8 @@ import {
 
 const router = express.Router();
 
-router.get("/my-vehicles", protectCustomer, getMyVehicles); // Customer-Dashboard
-router.get("/:id", protectAdminOrCustomer, getVehicleById); // Customer-Dashboard
+// router.get("/my-vehicles", protectCustomer, getMyVehicles); // Customer-Dashboard
+// router.get("/:id", protectAdminOrCustomer, getVehicleById); // Customer-Dashboard
 
 // Vehicle CRUD operations
 router.get(
