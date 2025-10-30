@@ -1,14 +1,9 @@
 import express from "express";
-import {
-  protectCustomer,
-  protectAdminOrCustomer,
-} from "../../middleware/customerMiddleware";
+
 import { protect, authorize } from "../../middleware/authmiddleware";
 import {
   getVehicleStats,
   getAllCustomerVehicles,
-  getMyVehicles,
-  getVehicleById,
   deleteVehicle,
   updateServiceStatus,
   getServiceDueVehicles,
