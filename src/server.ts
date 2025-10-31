@@ -17,7 +17,6 @@ import customerRoutes from "./routes/customerRoutes/customer";
 import customerProfile from "./routes/customerRoutes/customerProfile";
 
 import serviceBookingRoutes from "./routes/customerRoutes/serviceBooking";
-import servicePackageRoutes from "./routes/BikeSystemRoutes2/servicePackage";
 import valueAddedServicesRoutes from "./routes/BikeSystemRoutes2/VAS";
 import vehicleInfoRoutes from "./routes/BikeSystemRoutes2/CustomerVehicleRoutes";
 import stockConceptRoutes from "./routes/BikeSystemRoutes2/stockConcept";
@@ -83,7 +82,6 @@ app.use("/api/customer-profile", customerProfile);
 app.use("/api/service-bookings", serviceBookingRoutes);
 //
 app.use("/api/value-added-services", valueAddedServicesRoutes);
-app.use("/api/service-packages", servicePackageRoutes);
 app.use("/api/stock-concept", stockConceptRoutes);
 //
 app.use("/api/customer-vehicles", vehicleInfoRoutes);
