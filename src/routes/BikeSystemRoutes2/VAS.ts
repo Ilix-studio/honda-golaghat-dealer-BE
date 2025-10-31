@@ -5,8 +5,6 @@ import {
   getValueAddedServiceById,
   updateValueAddedService,
   deleteValueAddedService,
-  getCustomerEligibleServices,
-  toggleBadgeStatus,
   calculateServicePrice,
   getCustomerActiveServices,
   getServicesByType,
@@ -60,14 +58,6 @@ router.delete(
   protect,
   authorize("Super-Admin"),
   deleteValueAddedService
-);
-
-// Badge management
-router.patch(
-  "/admin/:id/badges/:badgeId/toggle",
-  protect,
-  authorize("Super-Admin", "Branch-Admin"),
-  toggleBadgeStatus
 );
 
 // Customer service activation

@@ -202,46 +202,6 @@ export const getCustomerEligibleServices = asyncHandler(
 );
 
 /**
- * @desc    Toggle badge status
- * @route   PUT /api/value-added-services/admin/:id/badges/:badgeId/toggle
- * @access  Private (Admin)
- */
-export const toggleBadgeStatus = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id, badgeId } = req.params;
-
-    const service = await ValueAddedServiceModel.findById(id);
-    if (!service) {
-      res.status(404);
-      throw new Error("Service not found");
-    }
-
-    const badge = (service.badges as any).id(badgeId);
-    if (!badge) {
-      res.status(404);
-      throw new Error("Badge not found");
-    }
-
-    badge.isActive = !badge.isActive;
-    await service.save();
-
-    logger.info(
-      `Badge ${badge.name} ${
-        badge.isActive ? "activated" : "deactivated"
-      } for service ${service.serviceName}`
-    );
-
-    res.status(200).json({
-      success: true,
-      message: `Badge ${
-        badge.isActive ? "activated" : "deactivated"
-      } successfully`,
-      data: { badge, service: service.serviceName },
-    });
-  }
-);
-
-/**
  * @desc    Calculate service price
  * @route   POST /api/value-added-services/calculate-price
  * @access  Private (Customer)
@@ -271,14 +231,6 @@ export const calculateServicePrice = asyncHandler(
         vehicle: vehicle.numberPlate,
         selectedYears,
         calculatedPrice: price,
-        breakdown: {
-          basePrice: service.priceStructure.basePrice,
-          yearlyPrice: service.priceStructure.pricePerYear * selectedYears,
-          multiplier:
-            engineCapacity > 125
-              ? service.priceStructure.engineCapacityMultiplier
-              : 1,
-        },
       },
     });
   }
