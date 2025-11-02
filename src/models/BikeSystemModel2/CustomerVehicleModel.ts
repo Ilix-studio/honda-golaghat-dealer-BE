@@ -54,7 +54,6 @@ export interface ICustomerVehicle extends Document {
     purchasePrice: number;
     coverageYears: number;
     isActive: boolean;
-    activeBadges: string[];
   }>;
 
   isActive: boolean;

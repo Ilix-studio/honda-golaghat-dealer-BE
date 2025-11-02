@@ -53,7 +53,6 @@ const valueAddedServiceSchema = new Schema<IValueAddedService>(
 
     validUntil: {
       type: Date,
-      required: [true, "Valid until date is required"],
     },
   },
   {
@@ -62,45 +61,8 @@ const valueAddedServiceSchema = new Schema<IValueAddedService>(
 );
 
 // Indexes
-valueAddedServiceSchema.index({ serviceType: 1, isActive: 1 });
-valueAddedServiceSchema.index({ validFrom: 1, validUntil: 1 });
-valueAddedServiceSchema.index({ "vehicleEligibility.maxEngineCapacity": 1 });
+valueAddedServiceSchema.index({ isActive: 1 });
 valueAddedServiceSchema.index({ coverageYears: 1 });
-
-// Pre-save middleware to validate dates
-valueAddedServiceSchema.pre("save", function (next) {
-  if (this.validUntil <= this.validFrom) {
-    next(new Error("Valid until date must be after valid from date"));
-    return;
-  }
-  next();
-});
-
-// Method to calculate price for specific vehicle
-valueAddedServiceSchema.methods.calculatePrice = function (
-  vehicleEngineCapacity: number,
-  selectedYears: number
-) {
-  const basePrice = this.priceStructure.basePrice;
-  const yearlyPrice = this.priceStructure.pricePerYear * selectedYears;
-  const capacityMultiplier =
-    vehicleEngineCapacity > 125
-      ? this.priceStructure.engineCapacityMultiplier || 1
-      : 1;
-
-  return Math.round((basePrice + yearlyPrice) * capacityMultiplier);
-};
-
-// Method to check vehicle eligibility
-valueAddedServiceSchema.methods.isVehicleEligible = function (
-  engineCapacity: number,
-  category: string
-) {
-  return (
-    engineCapacity <= this.vehicleEligibility.maxEngineCapacity &&
-    this.vehicleEligibility.categories.includes(category)
-  );
-};
 
 const ValueAddedServiceModel = mongoose.model<IValueAddedService>(
   "ValueAddedService",

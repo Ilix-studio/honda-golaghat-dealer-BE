@@ -12,9 +12,48 @@ import {
  * @route   POST /api/value-added-services
  * @access  Private (Admin)
  */
+/**
+ * @desc    Create value added service
+ * @route   POST /api/value-added-services
+ * @access  Private (Admin)
+ */
 export const createValueAddedService = asyncHandler(
   async (req: Request, res: Response) => {
-    const service = await ValueAddedServiceModel.create(req.body);
+    const {
+      serviceName,
+      coverageYears,
+      priceStructure,
+      benefits,
+      isActive,
+      applicableBranches,
+    } = req.body;
+
+    // Validate required fields
+    if (!serviceName || !coverageYears || !priceStructure?.basePrice) {
+      res.status(400);
+      throw new Error(
+        "Missing required fields: serviceName, coverageYears, priceStructure.basePrice"
+      );
+    }
+
+    // Validate benefits array
+    if (benefits && (!Array.isArray(benefits) || benefits.length === 0)) {
+      res.status(400);
+      throw new Error("Benefits must be a non-empty array");
+    }
+
+    const serviceData = {
+      serviceName: serviceName.trim(),
+      coverageYears: Number(coverageYears),
+      priceStructure: {
+        basePrice: Number(priceStructure.basePrice),
+      },
+      benefits: benefits || [],
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
+      applicableBranches: applicableBranches || [],
+    };
+
+    const service = await ValueAddedServiceModel.create(serviceData);
 
     logger.info(`Value Added Service created: ${service.serviceName}`);
 
@@ -299,7 +338,7 @@ export const getCustomerActiveServices = asyncHandler(
           expiryDate: service.expiryDate,
           purchasePrice: service.purchasePrice,
           coverageYears: service.coverageYears,
-          activeBadges: service.activeBadges,
+
           isActive: service.isActive,
         })),
     }));
@@ -356,7 +395,6 @@ export const getCustomersWithActiveVAS = asyncHandler(
           activatedDate: service.activatedDate,
           expiryDate: service.expiryDate,
           purchasePrice: service.purchasePrice,
-          activeBadges: service.activeBadges,
         })),
     }));
 
