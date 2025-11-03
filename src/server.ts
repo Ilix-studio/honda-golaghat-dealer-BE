@@ -81,8 +81,9 @@ app.use("/api/customer", customerRoutes);
 app.use("/api/customer-profile", customerProfile);
 app.use("/api/service-bookings", serviceBookingRoutes);
 //
-app.use("/api/value-added-services", valueAddedServicesRoutes);
+
 app.use("/api/stock-concept", stockConceptRoutes);
+app.use("/api/value-added-services", valueAddedServicesRoutes);
 //
 app.use("/api/customer-vehicles", vehicleInfoRoutes);
 //

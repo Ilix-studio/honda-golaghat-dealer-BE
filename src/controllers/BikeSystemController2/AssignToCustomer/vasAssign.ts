@@ -12,11 +12,11 @@ import logger from "../../../utils/logger";
  */
 export const activateCustomerService = asyncHandler(
   async (req: Request, res: Response) => {
-    const { id } = req.params; // VAS service ID
+    const { serviceId } = req.params; // VAS service ID
     const { customerId } = req.body;
 
     // Find service
-    const service = await ValueAddedServiceModel.findById(id);
+    const service = await ValueAddedServiceModel.findById(serviceId);
     if (!service || !service.isActive) {
       res.status(404);
       throw new Error("Service not found or inactive");
@@ -35,7 +35,7 @@ export const activateCustomerService = asyncHandler(
 
     // Check if service already active
     const existingService = vehicle.activeValueAddedServices.find(
-      (vas) => vas.serviceId.toString() === id && vas.isActive
+      (vas) => vas.serviceId.toString() === serviceId && vas.isActive
     );
 
     if (existingService) {
@@ -49,7 +49,7 @@ export const activateCustomerService = asyncHandler(
     expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
 
     const newVAS = {
-      serviceId: new mongoose.Types.ObjectId(id),
+      serviceId: new mongoose.Types.ObjectId(serviceId),
       activatedDate: activationDate,
       expiryDate,
       purchasePrice: service.priceStructure.basePrice,
@@ -70,7 +70,7 @@ export const activateCustomerService = asyncHandler(
       success: true,
       message: "Service activated successfully",
       data: {
-        serviceId: id,
+        serviceId: serviceId,
         serviceName: service.serviceName,
         customer: customerId,
         vehicle: vehicle._id,
