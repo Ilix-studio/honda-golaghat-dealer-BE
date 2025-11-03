@@ -12,76 +12,20 @@ import logger from "../../../utils/logger";
  */
 export const activateCustomerService = asyncHandler(
   async (req: Request, res: Response) => {
-    const { id } = req.params; // This is the service ID from URL
-    const { customerId, validFrom, validUntil } = req.body;
+    const { id } = req.params; // VAS service ID
+    const { customerId } = req.body;
 
-    // Find service by ID from params
+    // Find service
     const service = await ValueAddedServiceModel.findById(id);
-    if (!service) {
+    if (!service || !service.isActive) {
       res.status(404);
-      throw new Error("Service not found");
+      throw new Error("Service not found or inactive");
     }
 
-    // Validate and set service validity dates if provided
-    let serviceValidFrom = service.validFrom;
-    let serviceValidUntil = service.validUntil;
-
-    if (validFrom || validUntil) {
-      const updateData: any = {};
-
-      if (validFrom) {
-        const newValidFrom = new Date(validFrom);
-        if (isNaN(newValidFrom.getTime())) {
-          res.status(400);
-          throw new Error("Invalid validFrom date format");
-        }
-        updateData.validFrom = newValidFrom;
-        serviceValidFrom = newValidFrom;
-      }
-
-      if (validUntil) {
-        const newValidUntil = new Date(validUntil);
-        if (isNaN(newValidUntil.getTime())) {
-          res.status(400);
-          throw new Error("Invalid validUntil date format");
-        }
-        updateData.validUntil = newValidUntil;
-        serviceValidUntil = newValidUntil;
-      }
-
-      // Validate date range
-      if (
-        serviceValidUntil &&
-        serviceValidFrom &&
-        serviceValidUntil <= serviceValidFrom
-      ) {
-        res.status(400);
-        throw new Error("Valid until date must be after valid from date");
-      }
-
-      // Update service with new validity dates
-      await ValueAddedServiceModel.findByIdAndUpdate(id, updateData);
-    }
-
-    // Check if service is currently valid
-    const now = new Date();
-    if (
-      now < serviceValidFrom ||
-      (serviceValidUntil && now > serviceValidUntil)
-    ) {
-      res.status(400);
-      throw new Error("Service is not currently available for activation");
-    }
-
-    // Check if service is active
-    if (!service.isActive) {
-      res.status(400);
-      throw new Error("Service is currently inactive");
-    }
-
-    // Find vehicle with correct customer
+    // Find customer's vehicle
     const vehicle = await CustomerVehicleModel.findOne({
       customer: customerId,
+      isActive: true,
     }).populate("customer", "phoneNumber");
 
     if (!vehicle) {
@@ -89,32 +33,23 @@ export const activateCustomerService = asyncHandler(
       throw new Error("Vehicle not found for customer");
     }
 
-    // Check if service is already active for this vehicle
+    // Check if service already active
     const existingService = vehicle.activeValueAddedServices.find(
-      (vas) =>
-        vas.serviceId.toString() === service._id.toString() && vas.isActive
+      (vas) => vas.serviceId.toString() === id && vas.isActive
     );
 
     if (existingService) {
       res.status(400);
-      throw new Error("Service is already active for this vehicle");
+      throw new Error("Service already active for this vehicle");
     }
 
-    // Calculate activation and expiry dates
+    // Activate service
     const activationDate = new Date();
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
 
-    // Ensure expiry doesn't exceed service validity
-    if (serviceValidUntil) {
-      const serviceExpiryLimit = new Date(serviceValidUntil);
-      if (expiryDate > serviceExpiryLimit) {
-        expiryDate.setTime(serviceExpiryLimit.getTime());
-      }
-    }
-
     const newVAS = {
-      serviceId: new mongoose.Types.ObjectId(service._id),
+      serviceId: new mongoose.Types.ObjectId(id),
       activatedDate: activationDate,
       expiryDate,
       purchasePrice: service.priceStructure.basePrice,
@@ -135,24 +70,14 @@ export const activateCustomerService = asyncHandler(
       success: true,
       message: "Service activated successfully",
       data: {
-        serviceId: service._id,
+        serviceId: id,
         serviceName: service.serviceName,
         customer: customerId,
-        customerPhone: (vehicle.customer as any)?.phoneNumber,
-        vehicle: {
-          id: vehicle._id,
-          numberPlate: vehicle.numberPlate,
-          modelName: vehicle.modelName,
-        },
+        vehicle: vehicle._id,
         activation: {
           activatedDate: activationDate,
           expiryDate,
-          coverageYears: service.coverageYears,
           purchasePrice: newVAS.purchasePrice,
-        },
-        serviceValidity: {
-          validFrom: serviceValidFrom,
-          validUntil: serviceValidUntil,
         },
       },
     });

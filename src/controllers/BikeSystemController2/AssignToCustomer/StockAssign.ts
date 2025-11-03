@@ -145,7 +145,6 @@ export const activateToCustomer = asyncHandler(
         stockItem,
         customerVehicle: {
           _id: customerVehicle._id,
-          modelName: customerVehicle.modelName,
           numberPlate: customerVehicle.numberPlate,
         },
       },

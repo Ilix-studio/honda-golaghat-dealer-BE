@@ -223,7 +223,7 @@ export const getCustomerEligibleServices = asyncHandler(
         return {
           vehicle: {
             _id: vehicle._id,
-            modelName: vehicle.modelName,
+
             numberPlate: vehicle.numberPlate,
             registrationDate: vehicle.registrationDate,
             ageMonths: vehicleAgeMonths,
@@ -324,7 +324,7 @@ export const getCustomerActiveServices = asyncHandler(
     const activeServices = vehicles.map((vehicle: ICustomerVehicle) => ({
       vehicle: {
         _id: vehicle._id,
-        modelName: vehicle.modelName,
+
         numberPlate: vehicle.numberPlate,
         customer: customerId,
       },
@@ -383,7 +383,7 @@ export const getCustomersWithActiveVAS = asyncHandler(
       },
       vehicle: {
         _id: vehicle._id,
-        modelName: vehicle.modelName,
+
         numberPlate: vehicle.numberPlate,
       },
       activeServices: vehicle.activeValueAddedServices

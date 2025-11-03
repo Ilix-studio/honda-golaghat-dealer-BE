@@ -1,24 +1,23 @@
-// Updated CustomerVehicle Model with StockConcept reference
+// Updated CustomerVehicle Model - Complete Code with BikeImage Integration
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface ICustomerVehicle extends Document {
   _id: string;
-  modelName: string;
 
-  // Reference to StockConcept for vehicle details
-  stockConcept?: mongoose.Types.ObjectId; // Reference to StockConcept
+  // Core references
+  stockConcept: mongoose.Types.ObjectId; // Required - get all vehicle specs from here
+  customer: mongoose.Types.ObjectId; // Required
 
-  // Vehicle ownership details
+  // Ownership essentials
   registrationDate?: Date;
-  insurance: boolean;
-  isPaid: boolean;
-  isFinance: boolean;
-  color?: string;
   purchaseDate?: Date;
-  customer: mongoose.Types.ObjectId; // Reference to BaseCustomer
   numberPlate?: string;
   registeredOwnerName?: string;
-  motorcyclePhoto?: string;
+
+  // Payment status
+  isPaid: boolean;
+  isFinance: boolean;
+  insurance: boolean;
 
   // RTO Information
   rtoInfo?: {
@@ -28,27 +27,17 @@ export interface ICustomerVehicle extends Document {
     state: string;
   };
 
-  // Service tracking
+  // Simplified service tracking
   serviceStatus: {
     lastServiceDate?: Date;
     nextServiceDue?: Date;
-    serviceType: "Regular" | "Overdue" | "Due Soon" | "Up to Date";
     kilometers: number;
     serviceHistory: number;
   };
 
-  // Service package assignment
-  servicePackage: {
-    packageId: mongoose.Types.ObjectId; // Reference to ServiceAddons
-    activatedDate?: Date;
-    currentServiceLevel: number;
-    nextServiceType: string;
-    completedServices: string[];
-  };
-
-  // Value added services
+  // Simplified VAS
   activeValueAddedServices: Array<{
-    serviceId: mongoose.Types.ObjectId; // Reference to ValueAddedService
+    serviceId: mongoose.Types.ObjectId;
     activatedDate: Date;
     expiryDate: Date;
     purchasePrice: number;
@@ -63,14 +52,22 @@ export interface ICustomerVehicle extends Document {
 
 const customerVehicleSchema = new Schema<ICustomerVehicle>(
   {
-    // Reference to StockConcept for vehicle specifications
+    // Core references
     stockConcept: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "StockConcept",
+      required: [true, "Stock concept reference is required"],
       index: true,
     },
-    modelName: { type: String, trim: true },
 
+    customer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BaseCustomer",
+      required: [true, "Customer reference is required"],
+      unique: true,
+    },
+
+    // Ownership essentials
     registrationDate: {
       type: Date,
       validate: {
@@ -78,6 +75,16 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
           return !date || date <= new Date();
         },
         message: "Registration date cannot be in future",
+      },
+    },
+
+    purchaseDate: {
+      type: Date,
+      validate: {
+        validator: function (date: Date) {
+          return !date || date <= new Date();
+        },
+        message: "Purchase date cannot be in future",
       },
     },
 
@@ -93,12 +100,13 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
       ],
     },
 
-    insurance: {
-      type: Boolean,
-      required: [true, "Insurance status is required"],
-      default: false,
+    registeredOwnerName: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Owner name cannot exceed 100 characters"],
     },
 
+    // Payment status
     isPaid: {
       type: Boolean,
       default: false,
@@ -109,40 +117,13 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
       default: false,
     },
 
-    color: {
-      type: String,
-      trim: true,
-      maxlength: [50, "Color name cannot exceed 50 characters"],
+    insurance: {
+      type: Boolean,
+      required: [true, "Insurance status is required"],
+      default: false,
     },
 
-    purchaseDate: {
-      type: Date,
-      validate: {
-        validator: function (date: Date) {
-          return !date || date <= new Date();
-        },
-        message: "Purchase date cannot be in future",
-      },
-    },
-
-    customer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "BaseCustomer",
-      unique: true,
-      required: [true, "Customer reference is required"],
-    },
-
-    registeredOwnerName: {
-      type: String,
-      trim: true,
-      maxlength: [100, "Owner name cannot exceed 100 characters"],
-    },
-
-    motorcyclePhoto: {
-      type: String,
-      trim: true,
-    },
-
+    // RTO Information
     rtoInfo: {
       rtoCode: {
         type: String,
@@ -164,14 +145,10 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
       },
     },
 
+    // Simplified service tracking
     serviceStatus: {
       lastServiceDate: Date,
       nextServiceDue: Date,
-      serviceType: {
-        type: String,
-        enum: ["Regular", "Overdue", "Due Soon", "Up to Date"],
-        default: "Regular",
-      },
       kilometers: {
         type: Number,
         min: [0, "Kilometers cannot be negative"],
@@ -184,52 +161,7 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
       },
     },
 
-    servicePackage: {
-      packageId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "ServiceAddons",
-      },
-      activatedDate: {
-        type: Date,
-        default: Date.now,
-      },
-      currentServiceLevel: {
-        type: Number,
-        min: [1, "Service level starts from 1"],
-        max: [8, "Maximum 8 service levels"],
-        default: 1,
-      },
-      nextServiceType: {
-        type: String,
-        enum: [
-          "firstService",
-          "secondService",
-          "thirdService",
-          "paidServiceOne",
-          "paidServiceTwo",
-          "paidServiceThree",
-          "paidServiceFour",
-          "paidServiceFive",
-        ],
-        default: "firstService",
-      },
-      completedServices: [
-        {
-          type: String,
-          enum: [
-            "firstService",
-            "secondService",
-            "thirdService",
-            "paidServiceOne",
-            "paidServiceTwo",
-            "paidServiceThree",
-            "paidServiceFour",
-            "paidServiceFive",
-          ],
-        },
-      ],
-    },
-
+    // Simplified VAS
     activeValueAddedServices: [
       {
         serviceId: {
@@ -246,7 +178,6 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
           type: Date,
           required: [true, "Expiry date is required"],
         },
-
         purchasePrice: {
           type: Number,
           required: [true, "Purchase price is required"],
@@ -261,12 +192,6 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
           type: Boolean,
           default: true,
         },
-        activeBadges: [
-          {
-            type: String,
-            required: true,
-          },
-        ],
       },
     ],
 
@@ -281,9 +206,8 @@ const customerVehicleSchema = new Schema<ICustomerVehicle>(
 );
 
 // Indexes
-
-customerVehicleSchema.index({ "servicePackage.packageId": 1 });
 customerVehicleSchema.index({ "activeValueAddedServices.serviceId": 1 });
+customerVehicleSchema.index({ "serviceStatus.nextServiceDue": 1 });
 
 // Virtual to get vehicle details from StockConcept
 customerVehicleSchema.virtual("vehicleDetails", {
@@ -291,6 +215,26 @@ customerVehicleSchema.virtual("vehicleDetails", {
   localField: "stockConcept",
   foreignField: "_id",
   justOne: true,
+});
+
+// Virtual to get bike images from BikeImage system
+customerVehicleSchema.virtual("motorcycleImages", {
+  ref: "BikeImage",
+  localField: "stockConcept", // Use stockConcept._id to match bikeId in BikeImage
+  foreignField: "bikeId",
+  options: { sort: { isPrimary: -1, createdAt: -1 } }, // Primary image first
+});
+
+// Virtual to get primary motorcycle image
+customerVehicleSchema.virtual("primaryMotorcycleImage", {
+  ref: "BikeImage",
+  localField: "stockConcept",
+  foreignField: "bikeId",
+  justOne: true,
+  options: {
+    match: { isPrimary: true },
+    sort: { createdAt: -1 },
+  },
 });
 
 // Ensure virtual fields are serialized
