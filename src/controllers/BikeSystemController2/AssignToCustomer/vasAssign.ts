@@ -187,3 +187,4 @@ export const deactivateCustomerService = asyncHandler(
     });
   }
 );
+//What is happening in server
