@@ -62,7 +62,7 @@ router.delete(
 
 // Customer service activation
 router.post(
-  "/:serviceId/activate",
+  "/activate",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   activateCustomerService

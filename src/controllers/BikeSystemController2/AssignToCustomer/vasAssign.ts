@@ -12,75 +12,123 @@ import logger from "../../../utils/logger";
  */
 export const activateCustomerService = asyncHandler(
   async (req: Request, res: Response) => {
-    const { serviceId } = req.params; // VAS service ID
-    const { customerId } = req.body;
+    try {
+      const { serviceId, customerId } = req.body; // Get both from body
 
-    // Find service
-    const service = await ValueAddedServiceModel.findById(serviceId);
-    if (!service || !service.isActive) {
-      res.status(404);
-      throw new Error("Service not found or inactive");
-    }
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(serviceId)) {
+        res.status(400);
+        throw new Error("Invalid service ID format");
+      }
 
-    // Find customer's vehicle
-    const vehicle = await CustomerVehicleModel.findOne({
-      customer: customerId,
-      isActive: true,
-    }).populate("customer", "phoneNumber");
+      // Validate required fields
+      if (!customerId) {
+        res.status(400);
+        throw new Error("Customer ID is required");
+      }
 
-    if (!vehicle) {
-      res.status(404);
-      throw new Error("Vehicle not found for customer");
-    }
+      // Validate customer ID format
+      if (!mongoose.Types.ObjectId.isValid(customerId)) {
+        res.status(400);
+        throw new Error("Invalid customer ID format");
+      }
 
-    // Check if service already active
-    const existingService = vehicle.activeValueAddedServices.find(
-      (vas) => vas.serviceId.toString() === serviceId && vas.isActive
-    );
+      // Find service with detailed error information
+      const service = await ValueAddedServiceModel.findById(serviceId);
 
-    if (existingService) {
-      res.status(400);
-      throw new Error("Service already active for this vehicle");
-    }
+      if (!service) {
+        logger.warn(`Service not found with ID: ${serviceId}`);
+        res.status(404);
+        throw new Error("Service not found");
+      }
 
-    // Activate service
-    const activationDate = new Date();
-    const expiryDate = new Date();
-    expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
+      if (!service.isActive) {
+        logger.warn(
+          `Service inactive with ID: ${serviceId}, serviceName: ${service.serviceName}`
+        );
+        res.status(400);
+        throw new Error("Service is currently inactive");
+      }
 
-    const newVAS = {
-      serviceId: new mongoose.Types.ObjectId(serviceId),
-      activatedDate: activationDate,
-      expiryDate,
-      purchasePrice: service.priceStructure.basePrice,
-      coverageYears: service.coverageYears,
-      isActive: true,
-    };
+      // Check service validity period
+      const now = new Date();
+      if (service.validFrom && service.validFrom > now) {
+        res.status(400);
+        throw new Error("Service is not yet available");
+      }
 
-    vehicle.activeValueAddedServices.push(newVAS);
-    await vehicle.save();
+      if (service.validUntil && service.validUntil < now) {
+        res.status(400);
+        throw new Error("Service has expired");
+      }
 
-    logger.info(
-      `Service ${service.serviceName} activated for customer ${
-        (vehicle.customer as any)?.phoneNumber
-      } vehicle ${vehicle.numberPlate}`
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Service activated successfully",
-      data: {
-        serviceId: serviceId,
-        serviceName: service.serviceName,
+      // Find customer's vehicle with better error handling
+      const vehicle = await CustomerVehicleModel.findOne({
         customer: customerId,
-        vehicle: vehicle._id,
-        activation: {
-          activatedDate: activationDate,
-          expiryDate,
-          purchasePrice: newVAS.purchasePrice,
+        isActive: true,
+      }).populate("customer", "phoneNumber");
+
+      if (!vehicle) {
+        logger.warn(`No active vehicle found for customer: ${customerId}`);
+        res.status(404);
+        throw new Error("No active vehicle found for this customer");
+      }
+
+      // Check if service already active
+      const existingService = vehicle.activeValueAddedServices.find(
+        (vas) => vas.serviceId.toString() === serviceId && vas.isActive
+      );
+
+      if (existingService) {
+        res.status(400);
+        throw new Error("Service already active for this vehicle");
+      }
+
+      // Activate service
+      const activationDate = new Date();
+      const expiryDate = new Date();
+      expiryDate.setFullYear(expiryDate.getFullYear() + service.coverageYears);
+
+      const newVAS = {
+        serviceId: new mongoose.Types.ObjectId(serviceId),
+        activatedDate: activationDate,
+        expiryDate,
+        purchasePrice: service.priceStructure.basePrice,
+        coverageYears: service.coverageYears,
+        isActive: true,
+      };
+
+      vehicle.activeValueAddedServices.push(newVAS);
+      await vehicle.save();
+
+      logger.info(
+        `Service ${service.serviceName} activated for customer ${
+          (vehicle.customer as any)?.phoneNumber
+        } vehicle ${vehicle.numberPlate}`
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Service activated successfully",
+        data: {
+          serviceId: serviceId,
+          serviceName: service.serviceName,
+          customer: customerId,
+          vehicle: vehicle._id,
+          activation: {
+            activatedDate: activationDate,
+            expiryDate,
+            purchasePrice: newVAS.purchasePrice,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      logger.error("VAS Activation Error:", {
+        serviceId: req.body.serviceId,
+        customerId: req.body.customerId,
+      });
+      throw error; // Re-throw to be handled by asyncHandler
+    }
   }
 );
 //Hello
