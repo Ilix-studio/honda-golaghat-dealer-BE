@@ -1,75 +1,49 @@
-import mongoose, { Document, Schema, Types } from "mongoose";
+// Service Types Data
+export const FREE_SERVICES = [
+  {
+    id: "free-service-one",
+    name: "Free Service One",
+    description: "Basic inspection and consultation",
+    duration: "30 minutes",
+  },
+  {
+    id: "free-service-two",
+    name: "Free Service Two",
+    description: "Safety check and diagnostics",
+    duration: "45 minutes",
+  },
+  {
+    id: "free-service-three",
+    name: "Free Service Three",
+    description: "Battery and tire pressure check",
+    duration: "20 minutes",
+  },
+];
 
-// Define the interface for a service booking
-export interface IServiceBooking extends Document {
-  // Vehicle Information
-  motorcyclemodelName: mongoose.Types.ObjectId;
-  vehicleAge: Types.ObjectId;
-  mileage: number;
-  rtoCode: Types.ObjectId;
-
-  // Service Details
-  serviceType: string;
-  additionalServices: string[];
-
-  // Schedule Information
-  branchName: mongoose.Types.ObjectId;
-  appointmentDate: Date;
-  appointmentTime: string;
-
-  // Customer Information
-  customerName: {
-    firstName: Types.ObjectId;
-    lastName: Types.ObjectId;
-  };
-  contactInfo: {
-    email: Types.ObjectId;
-    phone: Types.ObjectId;
-  };
-
-  // Additional Information
-  specialRequests?: string;
-  serviceOptions: {
-    isDropOff: boolean;
-    willWaitOnsite: boolean;
-  };
-
-  // System Fields
-  bookingId: string; // Auto-generated booking reference
-  status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled";
-  priority: "normal" | "urgent";
-  estimatedCost?: number;
-  actualCost?: number;
-  estimatedDuration?: string;
-
-  // Assigned staff and notes
-  assignedTechnician?: string;
-  serviceNotes?: string;
-  internalNotes?: string;
-
-  // Branch reference
-  branch: mongoose.Types.ObjectId;
-
-  // Approval and terms
-  termsAccepted: boolean;
-  termsAcceptedAt: Date;
-
-  // Timestamps
-  createdAt: Date;
-  updatedAt: Date;
-  confirmedAt?: Date;
-  completedAt?: Date;
-
-  // Virtual fields
-  customerFullName: string;
-  appointmentDateTime: string;
-  daysUntilAppointment: number;
-
-  // Instance methods
-  confirmBooking(): Promise<IServiceBooking>;
-  cancelBooking(reason?: string): Promise<IServiceBooking>;
-  completeBooking(
-    actualCost?: number,
-    serviceNotes?: string
-  ): Promise<IServiceBooking>;
-}
+export const PAID_SERVICES = [
+  { id: "paid-service-one", name: "Oil Change Service" },
+  { id: "paid-service-two", name: "Brake Service" },
+  { id: "paid-service-three", name: "Chain Maintenance" },
+  { id: "paid-service-four", name: "Engine Tune-up" },
+  { id: "paid-service-five", name: "Transmission Service" },
+  { id: "paid-service-six", name: "Suspension Check" },
+  { id: "paid-service-seven", name: "Electrical Diagnosis" },
+  { id: "paid-service-eight", name: "Fuel System Cleaning" },
+  { id: "paid-service-nine", name: "Cooling System Flush" },
+  { id: "paid-service-ten", name: "Major Service" },
+  { id: "paid-service-eleven", name: "Minor Service" },
+  { id: "paid-service-twelve", name: "Pre-monsoon Service" },
+  { id: "paid-service-thirteen", name: "Winter Preparation" },
+  { id: "paid-service-fourteen", name: "Accident Repair" },
+  { id: "paid-service-fifteen", name: "Custom Modification" },
+  { id: "paid-service-sixteen", name: "Performance Upgrade" },
+  { id: "paid-service-seventeen", name: "Warranty Service" },
+  { id: "paid-service-eighteen", name: "Recall Service" },
+  { id: "paid-service-nineteen", name: "Roadside Assistance" },
+  { id: "paid-service-twenty", name: "Pickup & Delivery" },
+  { id: "paid-service-twenty-one", name: "Insurance Claim" },
+  { id: "paid-service-twenty-two", name: "Vehicle Inspection" },
+  { id: "paid-service-twenty-three", name: "Diagnostic Scan" },
+  { id: "paid-service-twenty-four", name: "Software Update" },
+  { id: "paid-service-twenty-five", name: "Complete Overhaul" },
+];

@@ -10,31 +10,38 @@ import {
   cancelServiceBooking,
   getBookingStats,
   checkTimeSlotAvailability,
+  getCustomerBookings,
+  getCustomerServiceStats,
 } from "../../controllers/CustomerController/serviceBooking.controller";
 import { protectCustomer } from "../../middleware/customerMiddleware";
 
 const router = express.Router();
 
-router.post("/", protectCustomer, createServiceBooking); // by auth customer
+// Customer routes (authenticated customers only)
+router.post("/", protectCustomer, createServiceBooking);
+router.get("/my-bookings", protectCustomer, getCustomerBookings);
+router.get("/my-stats", protectCustomer, getCustomerServiceStats);
 router.get("/availability", protectCustomer, checkTimeSlotAvailability);
-router.get("/:id", protectCustomer, getServiceBookingById); // Can be accessed with booking ID
-router.delete("/:id/cancel", protectCustomer, cancelServiceBooking); // Can cancel with booking ID + email
+router.get("/:id", protectCustomer, getServiceBookingById);
+router.delete("/:id/cancel", protectCustomer, cancelServiceBooking);
 
-// Protected routes - Admin only
+// Admin routes - Protected routes for Super Admin and Branch Admin
 router.get(
-  "/",
+  "/admin/all",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   getServiceBookings
 );
+
 router.patch(
   "/:id/status",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   updateBookingStatus
 );
+
 router.get(
-  "/stats",
+  "/admin/stats",
   protect,
   authorize("Super-Admin", "Branch-Admin"),
   getBookingStats
@@ -47,8 +54,5 @@ router.get(
   authorize("Super-Admin", "Branch-Admin"),
   getBranchUpcomingAppointments
 );
-
-// Create a extra route for service detail bill where SA/BM can post
-// and Customer can get service detail bill.
 
 export default router;

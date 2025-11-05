@@ -2,7 +2,8 @@ import asyncHandler from "express-async-handler";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Branch from "../../models/Branch";
-import { ServiceBooking } from "../../models/CustomerSystem/ServiceBooking";
+
+import { CustomerProfileModel } from "../../models/CustomerSystem/CustomerProfile";
 import {
   canAccessBranch,
   getUserBranch,
@@ -10,61 +11,99 @@ import {
   isBranchManager,
 } from "../../types/user.types";
 import logger from "../../utils/logger";
+import ServiceBookingModel from "../../models/CustomerSystem/ServiceBooking";
+import { CustomerVehicleModel } from "../../models/BikeSystemModel2/CustomerVehicleModel";
+import { FREE_SERVICES, PAID_SERVICES } from "../../types/serviceBooking.types";
 
 /**
- * @desc    Create a new service booking
+ * @desc    Create a new service booking (authenticated customers only)
  * @route   POST /api/service-bookings
- * @access  Public
+ * @access  Private (Customer)
  */
 export const createServiceBooking = asyncHandler(
   async (req: Request, res: Response) => {
     const {
-      motorcyclemodelName, // Fixed: was bikeModel
-      vehicleAge, // Fixed: was year
-      mileage,
-      rtoCode, // Fixed: was registrationNumber
-      serviceType,
-      additionalServices,
-      branchName, // Fixed: was serviceLocation
+      vehicle, // CustomerVehicle reference
+      serviceType, // Single service only
+      branch, // Branch reference
       appointmentDate,
       appointmentTime,
-      firstName,
-      lastName,
-      email,
-      phone,
+      location, // branch, home, office, roadside
       specialRequests,
       isDropOff,
       willWaitOnsite,
       termsAccepted,
     } = req.body;
 
+    if (!req.customer) {
+      res.status(401);
+      throw new Error("Customer authentication required");
+    }
+
     // Validate required fields
     if (
-      !motorcyclemodelName ||
-      !vehicleAge ||
-      !mileage ||
+      !vehicle ||
       !serviceType ||
-      !branchName ||
+      !branch ||
       !appointmentDate ||
       !appointmentTime ||
-      !firstName ||
-      !lastName ||
-      !email ||
-      !phone ||
+      !location ||
       !termsAccepted
     ) {
       res.status(400);
       throw new Error("Please provide all required fields");
     }
 
+    // Validate service type exists in allowed services
+    const allFreeServices = FREE_SERVICES.map((s) => s.id);
+    const allPaidServices = PAID_SERVICES.map((s) => s.id);
+    const allServices = [...allFreeServices, ...allPaidServices];
+
+    if (!allServices.includes(serviceType)) {
+      res.status(400);
+      throw new Error(
+        `Invalid service type: ${serviceType}. Please select a valid service.`
+      );
+    }
+
+    // Check if customer has already used this service
+    const hasUsedService = await ServiceBookingModel.hasCustomerUsedService(
+      req.customer._id.toString(),
+      serviceType
+    );
+
+    if (hasUsedService) {
+      res.status(400);
+      throw new Error(
+        "You have already used this service. Each service can only be booked once."
+      );
+    }
+
+    // Validate vehicle belongs to customer
+    if (!mongoose.Types.ObjectId.isValid(vehicle)) {
+      res.status(400);
+      throw new Error("Invalid vehicle ID");
+    }
+
+    const customerVehicle = await CustomerVehicleModel.findOne({
+      _id: vehicle,
+      customer: req.customer._id,
+      isActive: true,
+    }).populate("stockConcept");
+
+    if (!customerVehicle) {
+      res.status(404);
+      throw new Error("Vehicle not found or doesn't belong to customer");
+    }
+
     // Validate branch exists
-    if (!mongoose.Types.ObjectId.isValid(branchName)) {
+    if (!mongoose.Types.ObjectId.isValid(branch)) {
       res.status(400);
       throw new Error("Invalid branch ID");
     }
 
-    const branch = await Branch.findById(branchName);
-    if (!branch) {
+    const branchDoc = await Branch.findById(branch);
+    if (!branchDoc) {
       res.status(404);
       throw new Error("Branch not found");
     }
@@ -76,61 +115,80 @@ export const createServiceBooking = asyncHandler(
       throw new Error("Appointment date must be in the future");
     }
 
-    // Check for appointment slot availability (basic check)
-    const existingBooking = await ServiceBooking.findOne({
-      branchName,
-      appointmentDate: appointmentDateTime,
-      appointmentTime,
-      status: { $in: ["pending", "confirmed", "in-progress"] },
-    });
+    // Validate appointment time format and extract minutes
+    const timeMatch = appointmentTime.match(
+      /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/
+    );
+    if (!timeMatch) {
+      res.status(400);
+      throw new Error("Invalid time format. Use HH:MM format");
+    }
 
-    if (existingBooking) {
+    const appointmentMinutes =
+      parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+
+    // Check availability with 20-minute buffer
+    const isAvailable = await ServiceBookingModel.checkAvailabilityWithBuffer(
+      branch,
+      appointmentDateTime,
+      appointmentTime,
+      20 // 20-minute buffer
+    );
+
+    if (!isAvailable) {
       res.status(409);
       throw new Error(
-        "Time slot is already booked. Please choose another time."
+        "Time slot is not available. Please choose a time at least 20 minutes apart from existing bookings."
       );
     }
 
-    const bookingId = `BK${Date.now()}${Math.random()
-      .toString(36)
-      .substr(2, 5)
-      .toUpperCase()}`;
-
     // Create the service booking
-    const serviceBooking = await ServiceBooking.create({
-      bookingId,
-      motorcyclemodelName,
-      vehicleAge,
-      mileage: parseInt(mileage),
-      rtoCode,
+    const serviceBooking = await ServiceBookingModel.create({
+      customer: req.customer._id,
+      vehicle,
       serviceType,
-      additionalServices: additionalServices || [],
-      branchName,
+      usedServices: [serviceType], // Track this service as used
+      branch,
       appointmentDate: appointmentDateTime,
       appointmentTime,
-      customerName: {
-        firstName,
-        lastName,
-      },
-      contactInfo: {
-        email: email.toLowerCase(),
-        phone,
-      },
+      location,
       specialRequests: specialRequests || undefined,
       serviceOptions: {
         isDropOff: isDropOff || false,
         willWaitOnsite: willWaitOnsite || false,
       },
-      branch: branchName, // branch reference
       termsAccepted: true,
       termsAcceptedAt: new Date(),
     });
 
-    // Populate the branch details
-    await serviceBooking.populate("branchName", "name address phone email");
+    // Send admin notification
+    await serviceBooking.sendAdminNotification();
+
+    // Populate related data for response
+    await serviceBooking.populate([
+      { path: "customer", select: "phoneNumber firebaseUid" },
+      {
+        path: "vehicle",
+        populate: {
+          path: "stockConcept",
+          model: "StockConcept",
+        },
+      },
+      { path: "branch", select: "name address phone email" },
+    ]);
+
+    // Manually get customer profile
+    const customerProfile = await CustomerProfileModel.findOne({
+      customer: req.customer._id,
+    });
+
+    const responseData = {
+      ...serviceBooking.toObject(),
+      customerProfile,
+    };
 
     logger.info(
-      `Service booking created: ${serviceBooking.bookingId} for ${firstName} ${lastName}`
+      `Service booking created: ${serviceBooking.bookingId} for customer ${req.customer._id}`
     );
 
     res.status(201).json({
@@ -139,16 +197,83 @@ export const createServiceBooking = asyncHandler(
       data: {
         bookingId: serviceBooking.bookingId,
         appointmentDateTime: serviceBooking.appointmentDateTime,
-        branchName: serviceBooking.branchName,
+        branch: serviceBooking.branch,
         estimatedCost: serviceBooking.estimatedCost,
         serviceType: serviceBooking.serviceType,
+        status: serviceBooking.status,
+        customer: responseData.customer,
+        customerProfile: responseData.customerProfile,
       },
     });
   }
 );
 
 /**
- * @desc    Get all service bookings with filtering and pagination
+ * @desc    Get customer's service bookings
+ * @route   GET /api/service-bookings/my-bookings
+ * @access  Private (Customer)
+ */
+export const getCustomerBookings = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.customer) {
+      res.status(401);
+      throw new Error("Customer authentication required");
+    }
+
+    const {
+      status,
+      page = 1,
+      limit = 10,
+      sortBy = "appointmentDate",
+      sortOrder = "desc",
+    } = req.query;
+
+    // Build query
+    const query: any = { customer: req.customer._id };
+
+    if (status) {
+      query.status = status;
+    }
+
+    // Pagination
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sorting
+    const sort: any = {};
+    sort[sortBy as string] = sortOrder === "desc" ? -1 : 1;
+
+    // Execute query
+    const total = await ServiceBookingModel.countDocuments(query);
+    const bookings = await ServiceBookingModel.find(query)
+      .populate([
+        {
+          path: "vehicle",
+          populate: {
+            path: "stockConcept",
+            model: "StockConcept",
+          },
+        },
+        { path: "branch", select: "name address phone" },
+      ])
+      .sort(sort)
+      .limit(limitNum)
+      .skip(skip);
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
+      data: bookings,
+    });
+  }
+);
+
+/**
+ * @desc    Get all service bookings with filtering and pagination (Admin)
  * @route   GET /api/service-bookings
  * @access  Private (Admin only)
  */
@@ -156,7 +281,7 @@ export const getServiceBookings = asyncHandler(
   async (req: Request, res: Response) => {
     const {
       status,
-      branchName, // Fixed: was serviceLocation
+      branchId,
       startDate,
       endDate,
       serviceType,
@@ -181,19 +306,19 @@ export const getServiceBookings = asyncHandler(
       query.status = status;
     }
 
-    if (branchName) {
-      if (!mongoose.Types.ObjectId.isValid(branchName as string)) {
+    if (branchId) {
+      if (!mongoose.Types.ObjectId.isValid(branchId as string)) {
         res.status(400);
         throw new Error("Invalid branch ID");
       }
 
       // Check if user can access this branch
-      if (req.user && !canAccessBranch(req.user, branchName as string)) {
+      if (req.user && !canAccessBranch(req.user, branchId as string)) {
         res.status(403);
         throw new Error("Access denied to this branch");
       }
 
-      query.branchName = branchName;
+      query.branch = branchId;
     }
 
     if (serviceType) {
@@ -221,10 +346,19 @@ export const getServiceBookings = asyncHandler(
     sort[sortBy as string] = sortOrder === "desc" ? -1 : 1;
 
     // Execute query
-    const total = await ServiceBooking.countDocuments(query);
-    const bookings = await ServiceBooking.find(query)
-      .populate("branchName", "name address phone")
-      .populate("branch", "name")
+    const total = await ServiceBookingModel.countDocuments(query);
+    const bookings = await ServiceBookingModel.find(query)
+      .populate([
+        { path: "customer", select: "phoneNumber firebaseUid" },
+        {
+          path: "vehicle",
+          populate: {
+            path: "stockConcept",
+            model: "StockConcept",
+          },
+        },
+        { path: "branch", select: "name address phone" },
+      ])
       .sort(sort)
       .limit(limitNum)
       .skip(skip);
@@ -243,7 +377,7 @@ export const getServiceBookings = asyncHandler(
 /**
  * @desc    Get a single service booking by ID
  * @route   GET /api/service-bookings/:id
- * @access  Private (Admin) or Public (with booking ID)
+ * @access  Private (Customer for own bookings, Admin for all)
  */
 export const getServiceBookingById = asyncHandler(
   async (req: Request, res: Response) => {
@@ -253,10 +387,10 @@ export const getServiceBookingById = asyncHandler(
 
     // Check if it's a MongoDB ObjectId or booking ID
     if (mongoose.Types.ObjectId.isValid(id)) {
-      booking = await ServiceBooking.findById(id);
+      booking = await ServiceBookingModel.findById(id);
     } else {
       // Search by booking ID (e.g., SB-20241201-0001)
-      booking = await ServiceBooking.findOne({ bookingId: id });
+      booking = await ServiceBookingModel.findOne({ bookingId: id });
     }
 
     if (!booking) {
@@ -264,8 +398,15 @@ export const getServiceBookingById = asyncHandler(
       throw new Error("Service booking not found");
     }
 
-    // Check access permissions for authenticated users
-    if (req.user) {
+    // Check access permissions
+    if (req.customer) {
+      // Customer can only access their own bookings
+      if (booking.customer.toString() !== req.customer._id.toString()) {
+        res.status(403);
+        throw new Error("Access denied to this booking");
+      }
+    } else if (req.user) {
+      // Admin access control
       if (isBranchManager(req.user)) {
         const userBranch = getUserBranch(req.user);
         if (userBranch && booking.branch.toString() !== userBranch.toString()) {
@@ -273,12 +414,22 @@ export const getServiceBookingById = asyncHandler(
           throw new Error("Access denied to this booking");
         }
       }
+    } else {
+      res.status(401);
+      throw new Error("Authentication required");
     }
 
     // Populate related data
     await booking.populate([
-      { path: "branchName", select: "name address phone email hours" },
-      { path: "branch", select: "name address phone email" },
+      { path: "customer", select: "phoneNumber firebaseUid" },
+      {
+        path: "vehicle",
+        populate: {
+          path: "stockConcept",
+          model: "StockConcept",
+        },
+      },
+      { path: "branch", select: "name address phone email hours" },
     ]);
 
     res.status(200).json({
@@ -290,7 +441,7 @@ export const getServiceBookingById = asyncHandler(
 
 /**
  * @desc    Update service booking status
- * @route   PUT /api/service-bookings/:id/status
+ * @route   PATCH /api/service-bookings/:id/status
  * @access  Private (Admin only)
  */
 export const updateBookingStatus = asyncHandler(
@@ -298,9 +449,11 @@ export const updateBookingStatus = asyncHandler(
     const { id } = req.params;
     const {
       status,
-      // Removed assignedTechnician, serviceNotes as they are commented out in model
+      assignedTechnician,
+      serviceNotes,
       estimatedCost,
       actualCost,
+      estimatedDuration,
     } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -308,7 +461,7 @@ export const updateBookingStatus = asyncHandler(
       throw new Error("Invalid booking ID");
     }
 
-    const booking = await ServiceBooking.findById(id);
+    const booking = await ServiceBookingModel.findById(id);
     if (!booking) {
       res.status(404);
       throw new Error("Service booking not found");
@@ -338,8 +491,11 @@ export const updateBookingStatus = asyncHandler(
 
     // Update fields
     if (status) booking.status = status;
+    if (assignedTechnician) booking.assignedTechnician = assignedTechnician;
+    if (serviceNotes) booking.serviceNotes = serviceNotes;
     if (estimatedCost) booking.estimatedCost = estimatedCost;
     if (actualCost) booking.actualCost = actualCost;
+    if (estimatedDuration) booking.estimatedDuration = estimatedDuration;
 
     await booking.save();
 
@@ -362,21 +518,21 @@ export const updateBookingStatus = asyncHandler(
 
 /**
  * @desc    Cancel a service booking
- * @route   PUT /api/service-bookings/:id/cancel
- * @access  Public (with booking ID) or Private (Admin)
+ * @route   DELETE /api/service-bookings/:id/cancel
+ * @access  Private (Customer for own bookings, Admin for all)
  */
 export const cancelServiceBooking = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { reason, email } = req.body;
+    const { reason } = req.body;
 
     let booking;
 
     // Find booking by ID or booking ID
     if (mongoose.Types.ObjectId.isValid(id)) {
-      booking = await ServiceBooking.findById(id);
+      booking = await ServiceBookingModel.findById(id);
     } else {
-      booking = await ServiceBooking.findOne({ bookingId: id });
+      booking = await ServiceBookingModel.findOne({ bookingId: id });
     }
 
     if (!booking) {
@@ -384,13 +540,25 @@ export const cancelServiceBooking = asyncHandler(
       throw new Error("Service booking not found");
     }
 
-    // For Branch Managers, check if they can access this booking
-    if (req.user && isBranchManager(req.user)) {
-      const userBranch = getUserBranch(req.user);
-      if (userBranch && booking.branch.toString() !== userBranch.toString()) {
+    // Check access permissions
+    if (req.customer) {
+      // Customer can only cancel their own bookings
+      if (booking.customer.toString() !== req.customer._id.toString()) {
         res.status(403);
         throw new Error("Access denied to this booking");
       }
+    } else if (req.user) {
+      // Admin access control
+      if (isBranchManager(req.user)) {
+        const userBranch = getUserBranch(req.user);
+        if (userBranch && booking.branch.toString() !== userBranch.toString()) {
+          res.status(403);
+          throw new Error("Access denied to this booking");
+        }
+      }
+    } else {
+      res.status(401);
+      throw new Error("Authentication required");
     }
 
     // Check if booking can be cancelled
@@ -426,6 +594,53 @@ export const cancelServiceBooking = asyncHandler(
 );
 
 /**
+ * @desc    Check time slot availability
+ * @route   GET /api/service-bookings/availability
+ * @access  Private (Customer)
+ */
+export const checkTimeSlotAvailability = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { branchId, date } = req.query;
+
+    if (!req.customer) {
+      res.status(401);
+      throw new Error("Customer authentication required");
+    }
+
+    if (!branchId || !date) {
+      res.status(400);
+      throw new Error("Branch ID and date are required");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(branchId as string)) {
+      res.status(400);
+      throw new Error("Invalid branch ID");
+    }
+
+    const appointmentDate = new Date(date as string);
+    if (appointmentDate <= new Date()) {
+      res.status(400);
+      throw new Error("Date must be in the future");
+    }
+
+    // Get available time slots using static method
+    const availableSlots = await ServiceBookingModel.getAvailableTimeSlots(
+      branchId as string,
+      appointmentDate
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        date: appointmentDate.toDateString(),
+        availableSlots,
+        totalAvailable: availableSlots.length,
+      },
+    });
+  }
+);
+
+/**
  * @desc    Get upcoming appointments for a branch
  * @route   GET /api/service-bookings/branch/:branchId/upcoming
  * @access  Private (Branch Admin or Super Admin)
@@ -450,7 +665,7 @@ export const getBranchUpcomingAppointments = asyncHandler(
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + parseInt(days as string));
 
-    const appointments = await ServiceBooking.find({
+    const appointments = await ServiceBookingModel.find({
       branch: branchId,
       appointmentDate: {
         $gte: today,
@@ -458,7 +673,17 @@ export const getBranchUpcomingAppointments = asyncHandler(
       },
       status: { $in: ["pending", "confirmed", "in-progress"] },
     })
-      .populate("branchName", "name")
+      .populate([
+        { path: "customer", select: "phoneNumber firebaseUid" },
+        {
+          path: "vehicle",
+          populate: {
+            path: "stockConcept",
+            model: "StockConcept",
+          },
+        },
+        { path: "branch", select: "name" },
+      ])
       .sort({ appointmentDate: 1, appointmentTime: 1 });
 
     res.status(200).json({
@@ -514,24 +739,25 @@ export const getBookingStats = asyncHandler(
       serviceTypeStats,
       revenueStats,
       monthlyTrend,
+      notificationStats,
     ] = await Promise.all([
       // Total bookings
-      ServiceBooking.countDocuments(baseQuery),
+      ServiceBookingModel.countDocuments(baseQuery),
 
       // Bookings by status
-      ServiceBooking.aggregate([
+      ServiceBookingModel.aggregate([
         { $match: baseQuery },
         { $group: { _id: "$status", count: { $sum: 1 } } },
       ]),
 
       // Bookings by service type
-      ServiceBooking.aggregate([
+      ServiceBookingModel.aggregate([
         { $match: baseQuery },
         { $group: { _id: "$serviceType", count: { $sum: 1 } } },
       ]),
 
       // Revenue statistics
-      ServiceBooking.aggregate([
+      ServiceBookingModel.aggregate([
         { $match: { ...baseQuery, actualCost: { $exists: true } } },
         {
           $group: {
@@ -544,7 +770,7 @@ export const getBookingStats = asyncHandler(
       ]),
 
       // Monthly trend
-      ServiceBooking.aggregate([
+      ServiceBookingModel.aggregate([
         { $match: baseQuery },
         {
           $group: {
@@ -557,6 +783,22 @@ export const getBookingStats = asyncHandler(
           },
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]),
+
+      // Notification statistics
+      ServiceBookingModel.aggregate([
+        { $match: baseQuery },
+        {
+          $group: {
+            _id: null,
+            totalNotificationsSent: {
+              $sum: { $cond: ["$adminNotificationSent", 1, 0] },
+            },
+            pendingNotifications: {
+              $sum: { $cond: ["$adminNotificationSent", 0, 1] },
+            },
+          },
+        },
       ]),
     ]);
 
@@ -572,68 +814,65 @@ export const getBookingStats = asyncHandler(
           completedBookings: 0,
         },
         monthlyTrend,
+        notifications: notificationStats[0] || {
+          totalNotificationsSent: 0,
+          pendingNotifications: 0,
+        },
       },
     });
   }
 );
 
 /**
- * @desc    Check time slot availability
- * @route   GET /api/service-bookings/availability
- * @access  Public
+ * @desc    Get customer service statistics
+ * @route   GET /api/service-bookings/my-stats
+ * @access  Private (Customer)
  */
-export const checkTimeSlotAvailability = asyncHandler(
+export const getCustomerServiceStats = asyncHandler(
   async (req: Request, res: Response) => {
-    const { branchName, date } = req.query; // Fixed: was serviceLocation
-
-    if (!branchName) {
-      res.status(400);
-      throw new Error("Branch and date are required");
+    if (!req.customer) {
+      res.status(401);
+      throw new Error("Customer authentication required");
     }
 
-    if (!mongoose.Types.ObjectId.isValid(branchName as string)) {
-      res.status(400);
-      throw new Error("Invalid branch ID");
-    }
+    // Get total services used
+    const totalServicesUsed = await ServiceBookingModel.getCustomerServiceCount(
+      req.customer._id.toString()
+    );
 
-    const appointmentDate = new Date(date as string);
-    if (appointmentDate <= new Date()) {
-      res.status(400);
-      throw new Error("Date must be in the future");
-    }
+    // Get used services list
+    const usedServices = await ServiceBookingModel.find({
+      customer: req.customer._id,
+      status: { $in: ["confirmed", "completed"] },
+    }).select("serviceType");
 
-    // Get all booked time slots for the date and branch
-    const bookedSlots = await ServiceBooking.find({
-      branchName,
-      appointmentDate,
-      status: { $in: ["pending", "confirmed", "in-progress"] },
-    }).select("appointmentTime");
+    const usedServiceTypes = usedServices.map((booking) => booking.serviceType);
 
-    // Available time slots (you can make this configurable)
-    const allTimeSlots = [
-      "9:00 AM",
-      "10:00 AM",
-      "11:00 AM",
-      "12:00 PM",
-      "1:00 PM",
-      "2:00 PM",
-      "3:00 PM",
-      "4:00 PM",
-      "5:00 PM",
-    ];
+    // Calculate available services
+    const allFreeServices = FREE_SERVICES.map((s) => s.id);
+    const allPaidServices = PAID_SERVICES.map((s) => s.id);
+    const allServices = [...allFreeServices, ...allPaidServices];
 
-    const bookedTimes = bookedSlots.map((booking) => booking.appointmentTime);
-    const availableSlots = allTimeSlots.filter(
-      (slot) => !bookedTimes.includes(slot)
+    const availableServices = allServices.filter(
+      (service) => !usedServiceTypes.includes(service)
     );
 
     res.status(200).json({
       success: true,
       data: {
-        date: appointmentDate.toDateString(),
-        availableSlots,
-        bookedSlots: bookedTimes,
-        totalAvailable: availableSlots.length,
+        totalServicesUsed,
+        availableServicesCount: availableServices.length,
+        usedServicesCount: usedServiceTypes.length,
+        usedServiceTypes,
+        availableServices,
+        breakdown: {
+          freeServicesUsed: usedServiceTypes.filter((s) =>
+            allFreeServices.includes(s)
+          ).length,
+          paidServicesUsed: usedServiceTypes.filter((s) =>
+            allPaidServices.includes(s)
+          ).length,
+        },
       },
     });
   }
