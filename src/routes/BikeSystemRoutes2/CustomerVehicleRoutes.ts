@@ -11,11 +11,19 @@ import {
   createVehicleFromStock,
   updateVehicle,
 } from "../../controllers/BikeSystemController2/customerVehicle.controller";
+import {
+  protectAdminOrCustomer,
+  protectCustomer,
+} from "../../middleware/customerMiddleware";
+import {
+  getMyVehicles,
+  getVehicleById,
+} from "../../controllers/BikeSystemController2/stockConcept.controller";
 
 const router = express.Router();
 
-// router.get("/my-vehicles", protectCustomer, getMyVehicles); // Customer-Dashboard
-// router.get("/:id", protectAdminOrCustomer, getVehicleById); // Customer-Dashboard
+router.get("/my-vehicles", protectCustomer, getMyVehicles);
+router.get("/:id", protectAdminOrCustomer, getVehicleById); // Customer-Dashboard
 
 // Vehicle CRUD operations
 router.get(

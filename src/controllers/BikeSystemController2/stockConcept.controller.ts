@@ -217,7 +217,7 @@ export const getMyVehicles = asyncHandler(
 
 /**
  * @desc    Get vehicle by ID (for customer dashboard)
- * @route   GET /api/stock-concept/:id
+ * @route   GET /api/
  * @access  Private (Customer/Admin)
  */
 export const getVehicleById = asyncHandler(
