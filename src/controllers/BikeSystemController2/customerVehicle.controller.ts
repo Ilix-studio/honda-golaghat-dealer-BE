@@ -45,6 +45,79 @@ export const getAllCustomerVehicles = asyncHandler(
 );
 
 /**
+ * @desc    Get customer's own vehicles
+ * @route   GET /api/customer-vehicles/my-vehicles
+ * @access  Private (Customer)
+ */
+export const getMyVehicles = asyncHandler(
+  async (req: Request, res: Response) => {
+    console.log("🚗 getMyVehicles from customerVehicle.controller called");
+    console.log("Customer ID:", req.customer?._id);
+
+    const customerPhone = req.customer?.phoneNumber;
+
+    // Query CustomerVehicle directly, not StockConcept
+    const vehicles = await CustomerVehicleModel.find({
+      customer: req.customer?._id, // Use customer ObjectId instead of phone
+      isActive: true,
+    })
+      .populate({
+        path: "stockConcept",
+        select:
+          "stockId modelName category engineCC color variant yearOfManufacture engineNumber chassisNumber priceInfo",
+      })
+      .sort({ createdAt: -1 });
+
+    console.log("Found vehicles:", vehicles.length);
+
+    res.status(200).json({
+      success: true,
+      count: vehicles.length,
+      data: vehicles,
+    });
+  }
+);
+
+/**
+ * @desc    Get vehicle by ID
+ * @route   GET /api/customer-vehicles/:id
+ * @access  Private (Customer/Admin)
+ */
+export const getVehicleById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400);
+      throw new Error("Invalid vehicle ID");
+    }
+
+    const vehicle = await CustomerVehicleModel.findById(id)
+      .populate("customer", "phoneNumber")
+      .populate("activeValueAddedServices.serviceId");
+
+    if (!vehicle) {
+      res.status(404);
+      throw new Error("Vehicle not found");
+    }
+
+    // Check if customer is accessing their own vehicle
+    if (
+      req.customer &&
+      vehicle.customer._id.toString() !== req.customer._id.toString()
+    ) {
+      res.status(403);
+      throw new Error("Access denied");
+    }
+
+    res.status(200).json({
+      success: true,
+      data: vehicle,
+    });
+  }
+);
+
+/**
  * @desc    Create new vehicle from stock
  * @route   POST /api/customer-vehicles/create-from-stock
  * @access  Private (Admin)
