@@ -1,5 +1,7 @@
 # Honda Golaghat Dealer Backend - Project Overview
 
+> **💰 Cost-Conscious?** See [COST_OPTIMIZATION.md](./COST_OPTIMIZATION.md) for an ultra-low-cost strategy to serve 500 daily users on **$0-5/month** using Google Cloud Run and free tier services.
+
 ## Table of Contents
 1. [Project Description](#project-description)
 2. [Technology Stack](#technology-stack)
@@ -378,7 +380,9 @@ GET    /_ah/start               # Start check (App Engine)
 
 ### Current Setup
 
-**Platform**: Google Cloud App Engine (inferred from health check endpoints)
+**Platform**: Google Cloud Platform (health check endpoints compatible with App Engine/Cloud Run)
+
+> **💡 Recommended**: Deploy to **Google Cloud Run** for serverless, pay-per-use pricing. See [COST_OPTIMIZATION.md](./COST_OPTIMIZATION.md) for detailed Cloud Run deployment guide with **$0-5/month** costs.
 
 **Build Process**:
 ```bash
@@ -1198,15 +1202,24 @@ const bikes = await Bikes.find({ category: 'sport' })
 
 ### Cost Estimates (Monthly)
 
-**Infrastructure for 500 Daily Users**:
-- **Google Cloud App Engine**: $50-100/month (F1 instance)
-- **MongoDB Atlas**: $0-25/month (M0-M10 cluster)
-- **Redis (Cloud Memorystore)**: $25-50/month (1GB)
-- **Cloudinary**: $0/month (free tier sufficient)
-- **Firebase**: $0-25/month (free tier sufficient)
-- **Monitoring (Optional)**: $0-50/month
+> **💡 Ultra-Low-Cost Alternative**: See [COST_OPTIMIZATION.md](./COST_OPTIMIZATION.md) for a **$0-5/month** strategy using Google Cloud Run and free tier services!
 
-**Total Estimated Cost**: $75-250/month
+**Standard Infrastructure for 500 Daily Users** (with paid services):
+- **Google Cloud Run**: $0-5/month (mostly free tier, pay-per-use)
+- **MongoDB Atlas M0**: $0/month (free tier, 512MB sufficient)
+- **Upstash Redis**: $0/month (free tier, 10K commands/day)
+- **Cloudinary**: $0/month (free tier, 25GB storage/bandwidth)
+- **Firebase Auth**: $0/month (free tier, 10K verifications)
+- **Cloud Logging**: $0/month (free tier, 50GB)
+- **Egress (compressed)**: $0.60-3/month (5-15GB)
+
+**Total Estimated Cost**: **$0.60-8/month** (97% cost reduction!)
+
+**Alternative with Paid Services** (higher performance):
+- **Google Cloud Run**: $5-15/month (more traffic)
+- **MongoDB Atlas M10**: $9/month (dedicated cluster)
+- **Redis Cloud**: $10/month (more capacity)
+- **Total**: $25-40/month (still 50% cheaper than original estimate)
 
 ### Capacity After Optimizations
 
