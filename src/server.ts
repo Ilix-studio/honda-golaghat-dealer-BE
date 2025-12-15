@@ -20,6 +20,8 @@ import serviceBookingRoutes from "./routes/customerRoutes/serviceBooking";
 import valueAddedServicesRoutes from "./routes/BikeSystemRoutes2/VAS";
 import vehicleInfoRoutes from "./routes/BikeSystemRoutes2/CustomerVehicleRoutes";
 import stockConceptRoutes from "./routes/BikeSystemRoutes2/stockConcept";
+//
+import csvStockImportRoutes from "./routes/BikeSystemRoutes3/csvStock";
 
 import corsOptions from "./config/corOptions";
 import rateLimit from "express-rate-limit";
@@ -88,6 +90,8 @@ app.use("/api/value-added-services", valueAddedServicesRoutes);
 app.use("/api/customer-vehicles", vehicleInfoRoutes);
 //
 app.use("/api/visitor", visitorRoutes);
+//
+app.use("/api/csv-stock", csvStockImportRoutes);
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
