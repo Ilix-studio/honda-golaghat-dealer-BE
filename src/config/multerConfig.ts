@@ -106,3 +106,17 @@ export const handleMulterError = (
   // Pass other errors to the general error handler
   next(error);
 };
+export const csvUploadConfig = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+    files: 1,
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "text/csv" || file.originalname.endsWith(".csv")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only CSV files allowed"));
+    }
+  },
+});

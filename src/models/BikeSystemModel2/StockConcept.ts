@@ -176,3 +176,5 @@ export const StockConceptModel = mongoose.model<IStockConcept>(
   "StockConcept",
   stockConceptSchema
 );
+
+//https://claude.ai/chat/5e0a0653-5991-4de1-b9e4-376306f8fc84
