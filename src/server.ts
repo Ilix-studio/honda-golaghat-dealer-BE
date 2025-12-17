@@ -30,8 +30,14 @@ dotenv.config();
 
 // Create Express application
 const app: Application = express();
-
 const PORT = process.env.PORT || 8080;
+
+//CORS
+app.use(cors(corsOptions));
+
+// Body Parsers
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -39,12 +45,6 @@ const apiLimiter = rateLimit({
   max: 100, // limit each IP to 100 requests per windowMs
   message: "Too many requests from this IP, please try again after 15 minutes",
 });
-
-//CORS
-app.use(cors(corsOptions));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoints (no rate limiting)
 app.get("/", (req: Request, res: Response) => {
@@ -62,36 +62,31 @@ app.get("/_ah/start", (req: Request, res: Response) => {
   res.status(200).send("OK");
 });
 
-app.listen(PORT, () => {
-  console.log(`Listening to http://localhost:${PORT}`);
-});
-
-// Apply rate limiting to API routes except health checks
+// Apply rate limiter to all /api routes
 app.use("/api", apiLimiter);
 
+// Admin & Auth
 app.use("/api/adminLogin", auth);
+
+// Bike System
+app.use("/api/bikes", bikes);
+app.use("/api/bike-images", bikeImages);
+app.use("/api/stock-concept", stockConceptRoutes);
+app.use("/api/value-added-services", valueAddedServicesRoutes);
+app.use("/api/csv-stock", csvStockImportRoutes);
+
+// Customer System
+app.use("/api/customer", customerRoutes);
+app.use("/api/customer-profile", customerProfile);
+app.use("/api/customer-vehicles", vehicleInfoRoutes);
+app.use("/api/service-bookings", serviceBookingRoutes);
+
+// Other Services
 app.use("/api/cloudinary", cloudinaryRoutes);
 app.use("/api/branch", branchRoutes);
 app.use("/api/enquiry-form", enquiryRoutes);
-//new
-app.use("/api/bikes", bikes);
-app.use("/api/bike-images", bikeImages);
-
 app.use("/api/getapproved", getApprovedRoutes);
-
-app.use("/api/customer", customerRoutes);
-app.use("/api/customer-profile", customerProfile);
-app.use("/api/service-bookings", serviceBookingRoutes);
-//
-
-app.use("/api/stock-concept", stockConceptRoutes);
-app.use("/api/value-added-services", valueAddedServicesRoutes);
-//
-app.use("/api/customer-vehicles", vehicleInfoRoutes);
-//
 app.use("/api/visitor", visitorRoutes);
-//
-app.use("/api/csv-stock", csvStockImportRoutes);
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
@@ -113,12 +108,17 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// Centralized Error Handler
+// 404 handler
 app.use(routeNotFound);
+
+// Custom error handler
 app.use(errorHandler);
 
-// Connect to MongoDB
-connectDB();
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+  });
+});
 
 export default app;
-//Register not working

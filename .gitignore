@@ -52,3 +52,6 @@ coverage/
 # Upload directory for multer
 tsangpool-honda-otp-firebase-adminsdk-fbsvc-d12f0a6d9e.json
 tsangpool-honda-otp-firebase-adminsdk-fbsvc-d12f0a6d9e.json
+
+.vscode/
+.vscode/settings.json
