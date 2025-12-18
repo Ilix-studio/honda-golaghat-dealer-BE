@@ -261,3 +261,249 @@ export const assignCSVStockToCustomer = asyncHandler(
     });
   }
 );
+
+/**
+ * @desc    Get stocks from specific CSV batch
+ * @route   GET /api/stock-concept/csv-batch/:batchId
+ * @access  Private (Admin)
+ */
+export const getStocksByCSVBatch = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { batchId } = req.params;
+
+    const stocks = await StockConceptModel.find({
+      csvImportBatch: batchId,
+    })
+      .populate("stockStatus.branchId", "branchName address")
+      .sort({ createdAt: 1 });
+
+    if (stocks.length === 0) {
+      res.status(404);
+      throw new Error("No stocks found for this batch ID");
+    }
+
+    res.status(200).json({
+      success: true,
+      batchId,
+      count: stocks.length,
+      data: stocks,
+    });
+  }
+);
+// Get single CSV stock
+export const getCSVStockByStockId = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { stockId } = req.params;
+
+    const stock = await StockConceptCSVModel.findOne({ stockId })
+      .populate("stockStatus.branchId", "branchName address")
+      .populate("salesInfo.soldTo", "fullName phoneNumber")
+      .populate("salesInfo.customerVehicleId");
+
+    if (!stock) {
+      res.status(404);
+      throw new Error("CSV stock not found");
+    }
+
+    res.json({
+      success: true,
+      data: stock,
+    });
+  }
+);
+// Get CSV batches (folders)
+export const getCSVBatches = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { page = 1, limit = 20 } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const batches = await StockConceptCSVModel.aggregate([
+      {
+        $group: {
+          _id: "$csvImportBatch",
+          fileName: { $first: "$csvFileName" },
+          importDate: { $first: "$csvImportDate" },
+          totalStocks: { $sum: 1 },
+          availableStocks: {
+            $sum: {
+              $cond: [{ $eq: ["$stockStatus.status", "Available"] }, 1, 0],
+            },
+          },
+          soldStocks: {
+            $sum: {
+              $cond: [{ $eq: ["$stockStatus.status", "Sold"] }, 1, 0],
+            },
+          },
+          models: { $addToSet: "$modelName" },
+          locations: { $addToSet: "$stockStatus.location" },
+        },
+      },
+      { $sort: { importDate: -1 } },
+      { $skip: skip },
+      { $limit: Number(limit) },
+    ]);
+
+    const totalBatches = await StockConceptCSVModel.distinct("csvImportBatch");
+
+    res.json({
+      success: true,
+      data: batches.map((b) => ({
+        batchId: b._id,
+        fileName: b.fileName,
+        importDate: b.importDate,
+        totalStocks: b.totalStocks,
+        availableStocks: b.availableStocks,
+        soldStocks: b.soldStocks,
+        models: b.models,
+        locations: b.locations,
+      })),
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: totalBatches.length,
+        pages: Math.ceil(totalBatches.length / Number(limit)),
+      },
+    });
+  }
+);
+
+// Get stocks by batch (files in folder)
+export const getStocksByBatch = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { batchId } = req.params;
+    const { page = 1, limit = 50, status } = req.query;
+
+    const query: any = { csvImportBatch: batchId };
+    if (status) query["stockStatus.status"] = status;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [stocks, total] = await Promise.all([
+      StockConceptCSVModel.find(query)
+        .populate("stockStatus.branchId", "branchName")
+        .populate("salesInfo.soldTo", "fullName phoneNumber")
+        .skip(skip)
+        .limit(Number(limit))
+        .sort({ createdAt: 1 }),
+      StockConceptCSVModel.countDocuments(query),
+    ]);
+
+    if (stocks.length === 0) {
+      res.status(404);
+      throw new Error("Batch not found");
+    }
+
+    res.json({
+      success: true,
+      batchId,
+      data: stocks,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit)),
+      },
+    });
+  }
+);
+
+// Update stock status
+export const updateCSVStockStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { stockId } = req.params;
+    const { status, location } = req.body;
+
+    const validStatuses = ["Available", "Sold", "Reserved", "Service"];
+    if (status && !validStatuses.includes(status)) {
+      res.status(400);
+      throw new Error("Invalid status");
+    }
+
+    const stock = await StockConceptCSVModel.findOne({ stockId });
+
+    if (!stock) {
+      res.status(404);
+      throw new Error("Stock not found");
+    }
+
+    if (status) stock.stockStatus.status = status;
+    if (location) stock.stockStatus.location = location.toUpperCase();
+    stock.stockStatus.updatedBy = req.user!._id as mongoose.Types.ObjectId;
+
+    await stock.save();
+
+    res.json({
+      success: true,
+      message: "Status updated",
+      data: stock,
+    });
+  }
+);
+
+// Soft delete CSV stock
+export const deleteCSVStock = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { stockId } = req.params;
+
+    const stock = await StockConceptCSVModel.findOne({ stockId });
+
+    if (!stock) {
+      res.status(404);
+      throw new Error("Stock not found");
+    }
+
+    if (stock.stockStatus.status === "Sold") {
+      res.status(400);
+      throw new Error("Cannot delete sold stock");
+    }
+
+    stock.isActive = false;
+    await stock.save();
+
+    res.json({
+      success: true,
+      message: "Stock deleted",
+    });
+  }
+);
+
+// Unassign (reverse assignment)
+export const unassignCSVStock = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { stockId } = req.params;
+    const { reason } = req.body;
+
+    const stock = await StockConceptCSVModel.findOne({ stockId });
+
+    if (!stock) {
+      res.status(404);
+      throw new Error("Stock not found");
+    }
+
+    if (stock.stockStatus.status !== "Sold") {
+      res.status(400);
+      throw new Error("Stock not assigned");
+    }
+
+    const customerVehicleId = stock.salesInfo?.customerVehicleId;
+
+    // Delete customer vehicle record
+    if (customerVehicleId) {
+      await CustomerVehicleModel.findByIdAndDelete(customerVehicleId);
+    }
+
+    // Reset stock
+    stock.stockStatus.status = "Available";
+    stock.salesInfo = undefined;
+
+    await stock.save();
+
+    res.json({
+      success: true,
+      message: "Stock unassigned",
+      data: stock,
+      reason,
+    });
+  }
+);
