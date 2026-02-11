@@ -1,0 +1,431 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteBikeById = exports.updateBikeById = exports.getBikeById = exports.getBikes = exports.addBikes = void 0;
+const express_async_handler_1 = __importDefault(require("express-async-handler"));
+const Bikes_1 = __importDefault(require("../models/Bikes"));
+const mongoose_1 = __importDefault(require("mongoose"));
+/**
+ * @desc    Add a new bike
+ * @route   POST /api/bikes
+ * @access  Private
+ */
+exports.addBikes = (0, express_async_handler_1.default)(async (req, res) => {
+    // Debug logging
+    console.log("=== addBikes Debug Info ===");
+    console.log("Request body:", req.body);
+    console.log("=== End Debug Info ===");
+    // Check if req.body exists and is not empty
+    if (!req.body || Object.keys(req.body).length === 0) {
+        res.status(400).json({
+            success: false,
+            error: "Request body is missing or empty. Please send data in JSON format.",
+        });
+        return;
+    }
+    const { modelName, category, year, price, engine, power, transmission, features, colors, images, inStock, quantity, branch, } = req.body;
+    // Validate required fields
+    if (!modelName ||
+        !category ||
+        !year ||
+        !price ||
+        !engine ||
+        !power ||
+        !transmission ||
+        !branch) {
+        res.status(400).json({
+            success: false,
+            error: "Please provide all required fields: modelName, category, year, price, engine, power, transmission, branch",
+        });
+        return;
+    }
+    // Validate category is one of the allowed values
+    const validCategories = [
+        "sport",
+        "adventure",
+        "cruiser",
+        "touring",
+        "naked",
+        "electric",
+    ];
+    if (!validCategories.includes(category)) {
+        res.status(400).json({
+            success: false,
+            error: `Invalid category. Must be one of: ${validCategories.join(", ")}`,
+        });
+        return;
+    }
+    // Validate and clean numeric fields
+    let cleanYear;
+    let cleanPrice;
+    let cleanPower;
+    let cleanQuantity = 0;
+    try {
+        // Clean and validate year
+        cleanYear = parseInt(String(year));
+        if (isNaN(cleanYear) ||
+            cleanYear < 1990 ||
+            cleanYear > new Date().getFullYear() + 2) {
+            res.status(400).json({
+                success: false,
+                error: "Year must be a valid number between 1990 and " +
+                    (new Date().getFullYear() + 2),
+            });
+            return;
+        }
+        // Clean and validate price (remove commas and convert to number)
+        const priceStr = String(price).replace(/,/g, "");
+        cleanPrice = parseFloat(priceStr);
+        if (isNaN(cleanPrice) || cleanPrice <= 0) {
+            res.status(400).json({
+                success: false,
+                error: "Price must be a valid positive number",
+            });
+            return;
+        }
+        // Clean and validate power
+        const powerStr = String(power).replace(/[^\d.]/g, ""); // Remove non-numeric characters except decimal
+        cleanPower = parseFloat(powerStr);
+        if (isNaN(cleanPower) || cleanPower <= 0) {
+            res.status(400).json({
+                success: false,
+                error: "Power must be a valid positive number",
+            });
+            return;
+        }
+        // Clean and validate quantity if provided
+        if (quantity !== undefined && quantity !== null && quantity !== "") {
+            cleanQuantity = parseInt(String(quantity));
+            if (isNaN(cleanQuantity) || cleanQuantity < 0) {
+                res.status(400).json({
+                    success: false,
+                    error: "Quantity must be a valid non-negative number",
+                });
+                return;
+            }
+        }
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            error: "Invalid numeric values provided",
+        });
+        return;
+    }
+    // Validate branch is a valid ObjectId
+    if (!mongoose_1.default.Types.ObjectId.isValid(branch)) {
+        res.status(400).json({
+            success: false,
+            error: `Invalid branch ID. Must be a valid 24-character MongoDB ObjectId. Received: "${branch}" (${String(branch).length} characters)`,
+        });
+        return;
+    }
+    // Validate boolean fields
+    let cleanInStock = true;
+    if (inStock !== undefined && inStock !== null && inStock !== "") {
+        if (typeof inStock === "string") {
+            cleanInStock = inStock.toLowerCase() === "true";
+        }
+        else {
+            cleanInStock = Boolean(inStock);
+        }
+    }
+    try {
+        const newBike = await Bikes_1.default.create({
+            modelName: String(modelName).trim(),
+            category,
+            year: cleanYear,
+            price: cleanPrice,
+            engine: String(engine).trim(),
+            power: cleanPower,
+            transmission: String(transmission).trim(),
+            features: Array.isArray(features) ? features : [],
+            colors: Array.isArray(colors) ? colors : [],
+            images: Array.isArray(images) ? images : [],
+            inStock: cleanInStock,
+            quantity: cleanQuantity,
+            branch,
+        });
+        res.status(201).json({
+            success: true,
+            data: newBike,
+            message: "Bike added successfully",
+        });
+    }
+    catch (error) {
+        console.error("Error creating bike:", error);
+        // Handle MongoDB validation errors
+        if (error.name === "ValidationError") {
+            const validationErrors = Object.values(error.errors).map((err) => err.message);
+            res.status(400).json({
+                success: false,
+                error: "Validation failed",
+                details: validationErrors,
+            });
+            return;
+        }
+        // Handle duplicate key errors
+        if (error.code === 11000) {
+            res.status(400).json({
+                success: false,
+                error: "Duplicate entry detected",
+            });
+            return;
+        }
+        res.status(500).json({
+            success: false,
+            error: "Failed to create bike",
+            details: error.message,
+        });
+    }
+});
+/**
+ * @desc    Get all bikes with optional filtering
+ * @route   GET /api/bikes (with query parameters)
+ * @route   POST /api/bikes/search (with request body)
+ * @access  Public
+ */
+exports.getBikes = (0, express_async_handler_1.default)(async (req, res) => {
+    console.log("=== getBikes Debug Info ===");
+    console.log("Request method:", req.method);
+    console.log("Query params:", req.query);
+    console.log("Request body:", req.body);
+    console.log("=== End Debug Info ===");
+    let params = {};
+    // For GET requests, use query parameters
+    if (req.method === "GET") {
+        params = req.query;
+    }
+    else {
+        // For POST requests, use request body
+        params = req.body || {};
+    }
+    const { category, minPrice, maxPrice, inStock, branch, search, sortBy, limit = 10, page = 1, } = params;
+    // Build query
+    const query = {};
+    // Add filters if provided
+    if (category) {
+        query.category = category;
+    }
+    if (minPrice !== undefined || maxPrice !== undefined) {
+        query.price = {};
+        if (minPrice !== undefined)
+            query.price.$gte = Number(minPrice);
+        if (maxPrice !== undefined)
+            query.price.$lte = Number(maxPrice);
+    }
+    if (inStock !== undefined) {
+        // Handle string boolean values from query parameters
+        if (typeof inStock === "string") {
+            query.inStock = inStock.toLowerCase() === "true";
+        }
+        else {
+            query.inStock = inStock;
+        }
+    }
+    if (branch) {
+        if (!mongoose_1.default.Types.ObjectId.isValid(branch)) {
+            res.status(400).json({
+                success: false,
+                error: `Invalid branch ID: ${branch}`,
+            });
+            return;
+        }
+        query.branch = branch;
+    }
+    // Add search functionality
+    if (search) {
+        query.$or = [
+            { modelName: { $regex: search, $options: "i" } },
+            { features: { $in: [new RegExp(search, "i")] } },
+        ];
+    }
+    // Calculate pagination
+    const skip = (Number(page) - 1) * Number(limit);
+    // Determine sort order
+    let sort = {};
+    switch (sortBy) {
+        case "price-low":
+            sort = { price: 1 };
+            break;
+        case "price-high":
+            sort = { price: -1 };
+            break;
+        case "newest":
+            sort = { year: -1 };
+            break;
+        case "engine-size":
+            sort = { engine: -1 };
+            break;
+        case "power":
+            sort = { power: -1 };
+            break;
+        default:
+            sort = { createdAt: -1 }; // Default to newest added
+    }
+    try {
+        // Get total count for pagination
+        const total = await Bikes_1.default.countDocuments(query);
+        // Execute query with pagination and sorting
+        const bikes = await Bikes_1.default.find(query)
+            .sort(sort)
+            .limit(Number(limit))
+            .skip(skip)
+            .populate("branch", "name address");
+        res.status(200).json({
+            success: true,
+            count: bikes.length,
+            total,
+            totalPages: Math.ceil(total / Number(limit)),
+            currentPage: Number(page),
+            data: bikes,
+        });
+    }
+    catch (error) {
+        console.error("Error fetching bikes:", error);
+        res.status(500).json({
+            success: false,
+            error: "Failed to fetch bikes",
+            details: error.message,
+        });
+    }
+});
+/**
+ * @desc    Get a single bike by ID
+ * @route   GET /api/bikes/:id
+ * @access  Public
+ */
+exports.getBikeById = (0, express_async_handler_1.default)(async (req, res) => {
+    const { id } = req.params;
+    if (!mongoose_1.default.Types.ObjectId.isValid(id)) {
+        res.status(400).json({
+            success: false,
+            error: "Invalid bike ID",
+        });
+        return;
+    }
+    try {
+        const bike = await Bikes_1.default.findById(id).populate("branch", "name address");
+        if (!bike) {
+            res.status(404).json({
+                success: false,
+                error: "Bike not found",
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            data: bike,
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: "Failed to fetch bike",
+            details: error.message,
+        });
+    }
+});
+/**
+ * @desc    Update a bike by ID
+ * @route   PUT /api/bikes/:id
+ * @access  Private
+ */
+exports.updateBikeById = (0, express_async_handler_1.default)(async (req, res) => {
+    const { id } = req.params;
+    const updateData = req.body;
+    if (!mongoose_1.default.Types.ObjectId.isValid(id)) {
+        res.status(400).json({
+            success: false,
+            error: "Invalid bike ID",
+        });
+        return;
+    }
+    // Validate category if provided
+    if (updateData.category) {
+        const validCategories = [
+            "sport",
+            "adventure",
+            "cruiser",
+            "touring",
+            "naked",
+            "electric",
+        ];
+        if (!validCategories.includes(updateData.category)) {
+            res.status(400).json({
+                success: false,
+                error: "Invalid category",
+            });
+            return;
+        }
+    }
+    // Validate branch if provided
+    if (updateData.branch &&
+        !mongoose_1.default.Types.ObjectId.isValid(updateData.branch)) {
+        res.status(400).json({
+            success: false,
+            error: "Invalid branch ID",
+        });
+        return;
+    }
+    try {
+        const updatedBike = await Bikes_1.default.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true });
+        if (!updatedBike) {
+            res.status(404).json({
+                success: false,
+                error: "Bike not found",
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            data: updatedBike,
+            message: "Bike updated successfully",
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: "Failed to update bike",
+            details: error.message,
+        });
+    }
+});
+/**
+ * @desc    Delete a bike by ID
+ * @route   DELETE /api/bikes/:id
+ * @access  Private
+ */
+exports.deleteBikeById = (0, express_async_handler_1.default)(async (req, res) => {
+    const { id } = req.params;
+    if (!mongoose_1.default.Types.ObjectId.isValid(id)) {
+        res.status(400).json({
+            success: false,
+            error: "Invalid bike ID",
+        });
+        return;
+    }
+    try {
+        const bike = await Bikes_1.default.findByIdAndDelete(id);
+        if (!bike) {
+            res.status(404).json({
+                success: false,
+                error: "Bike not found",
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: "Bike deleted successfully",
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: "Failed to delete bike",
+            details: error.message,
+        });
+    }
+});
